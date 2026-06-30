@@ -46,18 +46,6 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
             <Tag key={t}>{t}</Tag>
           ))}
         </div>
-        <div className="mt-4 flex flex-wrap gap-4 text-sm">
-          {fm.repo && (
-            <a href={fm.repo} className="text-accent hover:underline" target="_blank" rel="noopener noreferrer">
-              Repository ↗
-            </a>
-          )}
-          {fm.demo && (
-            <a href={fm.demo} className="text-accent hover:underline" target="_blank" rel="noopener noreferrer">
-              Live demo ↗
-            </a>
-          )}
-        </div>
       </header>
 
       {fm.updates && fm.updates.length > 0 && (

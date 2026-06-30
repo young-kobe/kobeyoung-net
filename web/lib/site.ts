@@ -1,6 +1,6 @@
 /** Central site metadata. Edit here to update SEO defaults, nav, and social links. */
 export const site = {
-  name: "Kobe Young",
+  name: "Kobe's portfolio website",
   title: "Kobe's portfolio website",
   description:
     "Software engineer and U.S. Navy avionics veteran. Real-time data pipelines, RAG/LLM serving, and distributed backends on AWS/Azure.",
@@ -15,7 +15,7 @@ export const site = {
   },
   nav: [
     { href: "/projects", label: "Projects" },
-    { href: "/blog", label: "Writeups" },
+    // { href: "/blog", label: "Blog" },
     { href: "/chat", label: "KobeLLM" },
     { href: "/about", label: "About" },
     { href: "/contact", label: "Contact" },

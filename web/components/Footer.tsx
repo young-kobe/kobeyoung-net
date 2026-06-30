@@ -14,10 +14,7 @@ export function Footer() {
             LinkedIn
           </a>
           <a href={site.socials.resume} className="hover:text-fg transition-colors">
-            Résumé
-          </a>
-          <a href="/rss.xml" className="hover:text-fg transition-colors">
-            RSS
+            Resume
           </a>
         </div>
       </div>
