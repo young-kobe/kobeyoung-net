@@ -10,10 +10,10 @@ export const metadata: Metadata = {
 export default function DemoPage() {
   return (
     <div className="max-w-2xl">
-      <PageHeader eyebrow="~/kobellm" title="Live LLM Demo" />
+      <PageHeader eyebrow="~/kobellm" title="KobeLLM: Self hosted qwen2.5-1.5b AI Chat Interface" />
       <p className="mt-4 text-muted">
         Welcome to KobeLLM! This is a live AI chat interface with a self-hosted
-        open-source LLM served by LLama.cpp (now),  but will be ran on my hand 
+        open-source LLM served by LLama.cpp (now) on a cpx21, but will be ran on my hand 
         written miniature-inference-engine (in progress) in future! Tokens stream over SSE.
       </p>
 
