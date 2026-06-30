@@ -1,0 +1,94 @@
+# Full self-hosted stack for the Hetzner box. Cloudflare sits in front of Caddy.
+#
+#   Cloudflare (DNS/proxy/WAF)  →  Caddy (TLS, HSTS, headers, edge rate-limit)
+#                                    ├── web  (Next.js, :3000)
+#                                    └── api  (Go backend, :8080)
+#                                          └── model (llama.cpp + Qwen2.5-1.5B, :9090)
+#
+# Usage:
+#   cp ../api/.env.example ../api/.env   # fill in secrets
+#   docker compose up --build
+#
+# Only Caddy publishes ports to the host; web/api/mockmodel talk over the internal network.
+
+name: kobeyoung-net
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      # Set to your domain in production, e.g. SITE_DOMAIN=kobeyoung.net
+      SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
+    depends_on:
+      - web
+      - api
+
+  web:
+    build:
+      context: ..
+      dockerfile: web/Dockerfile
+      args:
+        # NEXT_PUBLIC_* are inlined at build time. In prod these are your real URLs.
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost/api}
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
+    restart: unless-stopped
+    expose:
+      - "3000"
+    mem_limit: 512m
+
+  api:
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ../api/.env
+    environment:
+      # Overrides for container networking (these win over .env):
+      # reach the model by service name, name it for display, and lock CORS to the site origin.
+      MODEL_BASE_URL: ${MODEL_BASE_URL:-http://model:9090}
+      MODEL_NAME: ${MODEL_NAME:-qwen2.5-1.5b}
+      ALLOWED_ORIGINS: ${NEXT_PUBLIC_SITE_URL:-http://localhost}
+      # Behind Caddy the real client IP arrives in CF-Connecting-IP / X-Forwarded-For, so
+      # per-IP rate limiting needs this on. PRECONDITION: ingress MUST be locked to
+      # Cloudflare (run deploy/cloudflare-firewall.sh AND enable Authenticated Origin Pulls
+      # in the Caddyfile) — otherwise an attacker hitting the origin directly can spoof
+      # these headers and defeat every per-IP control. Without the lock, set this to false.
+      TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-true}
+    expose:
+      - "8080"
+    mem_limit: 256m
+    depends_on:
+      - model
+
+  # Self-hosted inference engine: llama.cpp serving Qwen2.5-1.5B-Instruct (Q4_K_M) on CPU.
+  # Exposes GET /health + POST /v1/chat/completions — the OpenAI surface the proxy expects.
+  # First boot downloads the GGUF (~1 GB) into the cache volume; later starts are instant.
+  # To go bigger/faster later, point MODEL_BASE_URL at a GPU host running vLLM (no code change).
+  model:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    restart: unless-stopped
+    command: >
+      -hf Qwen/Qwen2.5-1.5B-Instruct-GGUF:Q4_K_M
+      --host 0.0.0.0 --port 9090
+      -c 4096 -t 3
+    volumes:
+      - model_cache:/root/.cache/llama.cpp
+    expose:
+      - "9090"
+    # 4 GB box: cap the model's RAM so a spike can't OOM-kill web/api/Caddy.
+    mem_limit: 2g
+
+volumes:
+  caddy_data:
+  caddy_config:
+  model_cache:

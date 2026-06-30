@@ -1,0 +1,61 @@
+# Caddy reverse proxy for the Hetzner box.
+#
+# - Automatic HTTPS (Let's Encrypt) when SITE_DOMAIN is a real domain.
+# - Routes /api/* → Go backend, everything else → Next.js.
+# - Security headers + HSTS at the edge; connection-level rate limiting.
+#
+# Cloudflare proxies in front of this. If you enable Cloudflare's "Full (strict)" TLS,
+# Caddy's own cert handles origin TLS. For local testing SITE_DOMAIN defaults to
+# localhost (Caddy serves a local self-signed cert).
+#
+# SECURITY — lock ingress to Cloudflare (see SECURITY-AUDIT.md H1). The backend trusts the
+# CF-Connecting-IP header for per-IP rate limiting, which is only sound if requests cannot
+# reach the origin except through Cloudflare. Enforce that with BOTH:
+#   1) Host firewall allowing 80/443 only from Cloudflare IPs — run deploy/cloudflare-firewall.sh
+#   2) Authenticated Origin Pulls (mTLS) — uncomment the `tls` block below after mounting
+#      Cloudflare's origin-pull CA. Then only Cloudflare can complete a TLS handshake here.
+
+{$SITE_DOMAIN} {
+	encode gzip zstd
+
+	# Authenticated Origin Pulls (Caddy 2.8+). Download Cloudflare's origin-pull CA to
+	# deploy/cloudflare-origin-pull-ca.pem, mount it into the caddy container, and uncomment:
+	# tls {
+	# 	client_auth {
+	# 		mode require_and_verify
+	# 		trust_pool file {
+	# 			pem_file /etc/caddy/cloudflare-origin-pull-ca.pem
+	# 		}
+	# 	}
+	# }
+
+	# Strip the /api prefix and forward to the Go backend.
+	handle_path /api/* {
+		reverse_proxy api:8080 {
+			# Pass the real client IP through to the app's rate limiter.
+			header_up X-Forwarded-For {remote_host}
+			# SSE: don't buffer the chat stream.
+			flush_interval -1
+		}
+	}
+
+	# Everything else → Next.js.
+	handle {
+		reverse_proxy web:3000
+	}
+
+	# Reinforce security headers at the edge (the app sets these too; defense in depth).
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=()"
+		-Server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

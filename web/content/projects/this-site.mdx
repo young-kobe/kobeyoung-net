@@ -1,0 +1,117 @@
+---
+title: This Site (kobeyoung.net)
+date: 2026-06-30
+summary: A portfolio, technical blog, and live self-hosted LLM demo — built as a monorepo with a Next.js front end, a zero-dependency Go backend, and layered abuse defenses, self-hosted on a single Hetzner box.
+status: in-progress
+tags: [Next.js, Go, MDX, Self-hosted, Security]
+repo: https://github.com/young-kobe/kobeyoung-net
+demo: /chat
+updates:
+  - date: 2026-06-30
+    note: First writeups published; retired the placeholder content.
+  - date: 2026-06-29
+    note: Initial pass — front end, Go API, and deploy stack stood up end to end.
+---
+
+## Why build it this way
+
+The brief I gave myself: a portfolio that **is** the portfolio. Not a template on a
+managed host, but something where the interesting decisions — how tokens stream from a
+self-hosted model, how the backend stays dependency-free, how abuse is kept out — are the
+content. Every choice here is one I can defend, which is the whole point of showing it.
+
+It's a monorepo:
+
+- `web/` — Next.js 15 (App Router, TypeScript, Tailwind). MDX files are the CMS.
+- `api/` — a Go backend on the **standard library only**, zero third-party modules.
+- `packages/contract/` — the single source of truth for the browser↔backend wire shapes.
+- `deploy/` — `docker-compose.yml` + `Caddyfile` for the whole stack.
+
+## The browser only ever talks to one backend
+
+This is the load-bearing rule. The browser never reaches a third party directly — not the
+model, not the email provider, not the spam-check service. Every secret lives in the Go
+API's environment, never in a `NEXT_PUBLIC_*` variable that would be inlined into the
+client bundle. Swapping the model means changing one URL on the server; the front end
+never knows the difference.
+
+<Callout type="note">
+  Routing the browser through my own backend isn't just tidy — it's where every rate
+  limit, token cap, and kill-switch lives. None of those are things I'd trust a browser to
+  honor on my behalf.
+</Callout>
+
+## Content is git, not a database
+
+There's no CMS and no database for content. A project or post is one MDX file with YAML
+frontmatter, validated at build time — a malformed file fails the build instead of
+shipping a broken page. Adding this very writeup was: drop in a file, commit, deploy.
+
+```ts
+// A missing or empty required field throws at build — loud, not silent.
+function requireString(fm: any, key: string, slug: string): string {
+  const v = fm[key];
+  if (typeof v !== "string" || v.trim() === "") {
+    throw new Error(`content/${slug}: frontmatter "${key}" must be a non-empty string`);
+  }
+  return v;
+}
+```
+
+MDX is treated as trusted-author input only — it compiles to JSX and can run code at build
+time, which is fine because every file is authored by me and committed to git. User input
+(the contact form) is email-only and is never rendered back into a page.
+
+## A backend with zero dependencies
+
+The Go API has no third-party modules by design. Rate limiting, the SSE proxy, config
+loading, the spam traps — all standard library. It keeps the supply-chain surface at
+effectively zero and forces me to actually understand the moving parts instead of importing
+them.
+
+The LLM demo is the clearest example: a small proxy relays an upstream OpenAI-style
+streaming response to the browser as simplified Server-Sent Events, flushing tokens as they
+arrive.
+
+```go
+// Disable proxy buffering so tokens reach the client immediately.
+w.Header().Set("Content-Type", "text/event-stream")
+w.Header().Set("X-Accel-Buffering", "no")
+```
+
+I wrote up the reasoning behind SSE over WebSockets separately — see the blog.
+
+## Abuse defenses are layered, not single-point
+
+A public demo that calls a model is an obvious target, so the defenses stack:
+
+- In-memory per-IP **and** global rate limiting on both the contact and demo endpoints.
+- The contact form pairs a honeypot field and a submit-time trap with Cloudflare Turnstile.
+- The demo has a kill-switch plus hard token and input-length caps.
+- Per-IP identity trusts `CF-Connecting-IP` only once ingress is locked to Cloudflare.
+
+On the front end, `middleware.ts` sets a strict, per-request **nonce-based** Content
+Security Policy — the primary defense against injected scripts.
+
+```ts
+const csp = [
+  `default-src 'self'`,
+  `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${turnstile}`,
+  `connect-src 'self' ${apiUrl}`,
+  `frame-ancestors 'none'`,
+  // …
+].join("; ");
+```
+
+## Deployment
+
+The whole stack runs on a single Hetzner box behind Caddy and Cloudflare — deliberately not
+a managed platform. Caddy terminates TLS and reverse-proxies; Cloudflare fronts it; the Go
+binary and the Next.js standalone server run as containers. It's a small machine doing an
+honest amount of work, and I own every layer of it.
+
+## What's next
+
+- A real evaluation harness for the demo model's responses.
+- Finishing the security notes into a public, readable writeup.
+- More project writeups as the work lands.
