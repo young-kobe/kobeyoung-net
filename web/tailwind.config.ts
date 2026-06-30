@@ -17,8 +17,10 @@ const config: Config = {
         fg: "rgb(var(--fg) / <alpha-value>)",
         muted: "rgb(var(--muted) / <alpha-value>)",
         accent: "rgb(var(--accent) / <alpha-value>)",
+        accent2: "rgb(var(--accent-2) / <alpha-value>)",
       },
       fontFamily: {
+        display: ["var(--font-display)", "ui-sans-serif", "system-ui", "sans-serif"],
         sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
       },

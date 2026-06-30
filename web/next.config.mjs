@@ -13,6 +13,11 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
 
+  // The code-heavy project writeups (many shiki-highlighted blocks) can approach the
+  // default 60s/page static-generation limit when the Docker build runs on the small
+  // Hetzner box alongside the model. Give them headroom so the build doesn't flake.
+  staticPageGenerationTimeout: 120,
+
   async headers() {
     return [
       {

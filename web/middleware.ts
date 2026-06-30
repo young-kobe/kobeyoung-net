@@ -17,9 +17,14 @@ export function middleware(request: NextRequest) {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
   const turnstile = "https://challenges.cloudflare.com";
 
+  // Dev-only: Next's Fast Refresh / HMR runtime uses eval(), which the strict
+  // production policy blocks — without this, hydration throws on boot and ALL
+  // client JS dies (theme toggle, animations, chat). Never emitted in production.
+  const devEval = process.env.NODE_ENV !== "production" ? " 'unsafe-eval'" : "";
+
   const csp = [
     `default-src 'self'`,
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${turnstile}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${devEval} ${turnstile}`,
     `style-src 'self' 'unsafe-inline'`, // Tailwind/Next inject style tags; scoped to styles only
     `img-src 'self' data: blob:`,
     `font-src 'self' data:`,

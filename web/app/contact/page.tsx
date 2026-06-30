@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ContactForm } from "@/components/ContactForm";
 import { site } from "@/lib/site";
+import { PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -10,8 +11,8 @@ export const metadata: Metadata = {
 export default function ContactPage() {
   return (
     <div className="max-w-xl">
-      <h1 className="text-3xl font-bold tracking-tight">Contact</h1>
-      <p className="mt-2 text-muted">
+      <PageHeader eyebrow="~/contact" title="Contact" />
+      <p className="mt-4 text-muted">
         Hiring, collaboration, or questions about my work — send a note and it lands in my
         inbox. You can also reach me on{" "}
         <a href={site.socials.github} className="text-accent hover:underline" target="_blank" rel="noopener noreferrer">

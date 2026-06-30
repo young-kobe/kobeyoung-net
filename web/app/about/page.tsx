@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
 import { site } from "@/lib/site";
+import { PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = {
-  title: "About",
+  title: "About Me",
   description: "Kobe Young — from Navy avionics to software engineering, cloud to systems.",
 };
 
 export default function AboutPage() {
   return (
-    <div className="prose">
-      <h1 className="text-3xl font-bold tracking-tight">About</h1>
+    <div>
+      <PageHeader eyebrow="~/about" title="About Me" />
+      <div className="prose mt-8">
       <p>
         I&apos;m {site.name} — a software engineer with roughly three years of production
         experience and a U.S. Navy background in avionics. I&apos;m finishing a B.S. in
@@ -40,6 +42,7 @@ export default function AboutPage() {
         and tools that respect the people using them. If you&apos;re hiring for backend,
         data, or ML-systems work, I&apos;d love to talk — <a href="/contact">reach out</a>.
       </p>
+      </div>
     </div>
   );
 }

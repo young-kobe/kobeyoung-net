@@ -1,24 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getPosts, formatDate } from "@/lib/content";
-import { Tag } from "@/components/ui";
+import { PageHeader, Tag } from "@/components/ui";
 
 export const metadata: Metadata = {
-  title: "Writeups",
-  description: "Technical writeups and project deep-dives.",
+  title: "Blog posts",
+  description: "Blog posts and other writing ventures authored by me",
 };
 
 export default function BlogPage() {
   const posts = getPosts();
   return (
     <div>
-      <h1 className="text-3xl font-bold tracking-tight">Writeups</h1>
-      <p className="mt-2 text-muted">Project deep-dives and notes on systems, data, and LLMs.</p>
-      <ul className="mt-8 space-y-8">
+      <PageHeader
+        eyebrow="~/blog"
+        title="Blog Posts"
+        lead="Blog posts and other writing ventures authored by me."
+      />
+      <ul className="mt-10 space-y-8">
         {posts.map((post) => (
           <li key={post.slug}>
             <Link href={`/blog/${post.slug}`} className="group">
-              <h2 className="text-xl font-semibold tracking-tight group-hover:text-accent transition-colors">
+              <h2 className="font-display text-xl font-bold tracking-tight transition-colors group-hover:text-accent">
                 {post.frontmatter.title}
               </h2>
             </Link>

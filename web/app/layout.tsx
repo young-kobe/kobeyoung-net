@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { Space_Grotesk, JetBrains_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { site } from "@/lib/site";
 import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/Footer";
+
+// Self-hosted by next/font (served from 'self'), so the strict CSP stays intact.
+// Display carries the personality; mono is the page's "data voice"; Inter sets body text.
+const display = Space_Grotesk({ subsets: ["latin"], weight: ["500", "700"], variable: "--font-display", display: "swap" });
+const mono = JetBrains_Mono({ subsets: ["latin"], weight: ["400", "500", "700"], variable: "--font-mono", display: "swap" });
+const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
@@ -35,9 +42,20 @@ const themeScript = `
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={`${display.variable} ${mono.variable} ${sans.variable}`} suppressHydrationWarning>
       <head>
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {/* Browsers clear the nonce content attribute after load ("nonce hiding"),
+            so the hydrated DOM shows nonce="" while SSR emitted the value — an
+            expected, harmless mismatch on this one element. */}
+        <script
+          nonce={nonce}
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: themeScript }}
+        />
+        {/* Without JS, scroll-reveal content must never stay hidden. */}
+        <noscript>
+          <style>{`.reveal{opacity:1 !important;transform:none !important}`}</style>
+        </noscript>
       </head>
       <body className="min-h-screen flex flex-col">
         <a

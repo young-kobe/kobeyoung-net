@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getProjects, formatDate } from "@/lib/content";
-import { CardLink, StatusBadge, Tag } from "@/components/ui";
+import { CardLink, PageHeader, StatusBadge, Tag } from "@/components/ui";
 
 export const metadata: Metadata = {
   title: "Projects",
@@ -11,9 +11,12 @@ export default function ProjectsPage() {
   const projects = getProjects();
   return (
     <div>
-      <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
-      <p className="mt-2 text-muted">Deep-dives with status, metrics, and update logs.</p>
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
+      <PageHeader
+        eyebrow="~/projects"
+        title="Projects"
+        lead="Deep-dives with status, metrics, and update logs."
+      />
+      <div className="mt-10 grid gap-4 sm:grid-cols-2">
         {projects.map((p) => (
           <CardLink key={p.slug} href={`/projects/${p.slug}`} title={p.frontmatter.title}>
             <div className="mt-2 flex items-center gap-2">

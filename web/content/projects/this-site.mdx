@@ -1,11 +1,10 @@
 ---
 title: This Site (kobeyoung.net)
 date: 2026-06-30
-summary: A portfolio, technical blog, and live self-hosted LLM demo — built as a monorepo with a Next.js front end, a zero-dependency Go backend, and layered abuse defenses, self-hosted on a single Hetzner box.
+summary: A portfolio, technical blog, and live self-hosted LLM demo built as a monorepo with a Next.js front end, a zero-dependency Go backend, and layered abuse defenses, self-hosted on a single Hetzner box.
 status: in-progress
 tags: [Next.js, Go, MDX, Self-hosted, Security]
-repo: https://github.com/young-kobe/kobeyoung-net
-demo: /chat
+
 updates:
   - date: 2026-06-30
     note: First writeups published; retired the placeholder content.
@@ -15,37 +14,31 @@ updates:
 
 ## Why build it this way
 
-The brief I gave myself: a portfolio that **is** the portfolio. Not a template on a
-managed host, but something where the interesting decisions — how tokens stream from a
-self-hosted model, how the backend stays dependency-free, how abuse is kept out — are the
-content. Every choice here is one I can defend, which is the whole point of showing it.
+I wanted a portfolio website that mirrors my enthusisam for technology, engineering, DIY builds,
+and data privacy / security. How tokens stream from a self-hosted model, how the backend stays 
+dependency-free, and how abuse is kept out an interesting domain, hence my desire to build as I have.
 
-It's a monorepo:
+The basic monolithic repo structure:
 
 - `web/` — Next.js 15 (App Router, TypeScript, Tailwind). MDX files are the CMS.
 - `api/` — a Go backend on the **standard library only**, zero third-party modules.
 - `packages/contract/` — the single source of truth for the browser↔backend wire shapes.
 - `deploy/` — `docker-compose.yml` + `Caddyfile` for the whole stack.
 
-## The browser only ever talks to one backend
+## The browser only talks to one backend
 
-This is the load-bearing rule. The browser never reaches a third party directly — not the
-model, not the email provider, not the spam-check service. Every secret lives in the Go
+The load-bearing rule ingress security rule. The browser never reaches a third party directly;
+not the model, not the email provider, and not the spam-check service. Every secret lives in the Go
 API's environment, never in a `NEXT_PUBLIC_*` variable that would be inlined into the
-client bundle. Swapping the model means changing one URL on the server; the front end
-never knows the difference.
+client bundle. To swap the model you just change one URL on the server; the front end
+never knows the difference, our decoupling in action.
 
-<Callout type="note">
-  Routing the browser through my own backend isn't just tidy — it's where every rate
-  limit, token cap, and kill-switch lives. None of those are things I'd trust a browser to
-  honor on my behalf.
-</Callout>
 
 ## Content is git, not a database
 
 There's no CMS and no database for content. A project or post is one MDX file with YAML
-frontmatter, validated at build time — a malformed file fails the build instead of
-shipping a broken page. Adding this very writeup was: drop in a file, commit, deploy.
+frontmatter, validated at build time so a malformed file fails the build instead of
+shipping a broken page. For example, adding this was: drop in a file, commit, deploy.
 
 ```ts
 // A missing or empty required field throws at build — loud, not silent.
@@ -58,30 +51,58 @@ function requireString(fm: any, key: string, slug: string): string {
 }
 ```
 
-MDX is treated as trusted-author input only — it compiles to JSX and can run code at build
+MDX is treated as trusted-author input only, it compiles to JSX and can run code at build
 time, which is fine because every file is authored by me and committed to git. User input
 (the contact form) is email-only and is never rendered back into a page.
 
-## A backend with zero dependencies
+## Zero dependency backend
 
 The Go API has no third-party modules by design. Rate limiting, the SSE proxy, config
-loading, the spam traps — all standard library. It keeps the supply-chain surface at
+loading, the spam traps are all standard library. It keeps the supply-chain surface at
 effectively zero and forces me to actually understand the moving parts instead of importing
 them.
 
-The LLM demo is the clearest example: a small proxy relays an upstream OpenAI-style
+The KobeLLM service I wrote is an examples of this: a small proxy relays an upstream OpenAI-style
 streaming response to the browser as simplified Server-Sent Events, flushing tokens as they
 arrive.
 
+
+## SSE > Websockets for KobeLLM chat interface
+For one-directional, server-to-client token streaming, SSE is the simpler, more robust
+choice:
+
+- It rides on plain HTTP, so it works through proxies (Caddy, Cloudflare) with no upgrade
+  handshake to misconfigure.
+- Automatic reconnection is built into the browser's `EventSource`.
+- There's no bidirectional channel to secure, the client sends one request, the server
+  streams the answer.
+
+<Callout type="note">
+  The one catch: `EventSource` only does GET. Because my requests carry a JSON body (the
+  chat history), I stream from a `fetch()` response and parse the SSE frames myself.
+</Callout>
+
+## The proxy in the middle
+
+The browser never talks to the model directly — it talks to my Go backend, which proxies
+to the inference engine. That indirection is where the safety controls live:
+
 ```go
-// Disable proxy buffering so tokens reach the client immediately.
+// Disable proxy buffering so tokens flush to the client immediately.
 w.Header().Set("Content-Type", "text/event-stream")
 w.Header().Set("X-Accel-Buffering", "no")
 ```
 
-I wrote up the reasoning behind SSE over WebSockets separately — see the blog.
+The proxy enforces per-IP and global rate limits, a hard token cap, and a kill-switch —
+none of which I'd want to trust a browser to honor.
 
-## Abuse defenses are layered, not single-point
+## Graceful failure
+
+A `/health` check gates the UI, and any upstream error becomes a clean "KobeLLm demo offline"
+message instead of a spinner that never resolves.
+
+
+## Abuse defenses
 
 A public demo that calls a model is an obvious target, so the defenses stack:
 
