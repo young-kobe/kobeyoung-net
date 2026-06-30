@@ -62,7 +62,7 @@ export default function HomePage() {
             href={site.socials.resume}
             className="rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
           >
-            Resume (PDF)
+            Resume
           </a>
         </div>
         <p
