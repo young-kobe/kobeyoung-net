@@ -1,16 +1,37 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Space_Grotesk, JetBrains_Mono, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { site } from "@/lib/site";
 import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/Footer";
 
-// Self-hosted by next/font (served from 'self'), so the strict CSP stays intact.
+// Fonts ship as committed .woff2 in app/fonts (SIL OFL) and load via next/font/local,
+// so the build is hermetic (no fetch from Google) and they're still served from 'self'.
 // Display carries the personality; mono is the page's "data voice"; Inter sets body text.
-const display = Space_Grotesk({ subsets: ["latin"], weight: ["500", "700"], variable: "--font-display", display: "swap" });
-const mono = JetBrains_Mono({ subsets: ["latin"], weight: ["400", "500", "700"], variable: "--font-mono", display: "swap" });
-const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+const display = localFont({
+  src: [
+    { path: "./fonts/space-grotesk-500.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/space-grotesk-700.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--font-display",
+  display: "swap",
+});
+const mono = localFont({
+  src: [
+    { path: "./fonts/jetbrains-mono-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/jetbrains-mono-500.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/jetbrains-mono-700.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--font-mono",
+  display: "swap",
+});
+const sans = localFont({
+  src: "./fonts/inter-variable.woff2",
+  weight: "100 900",
+  variable: "--font-sans",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
