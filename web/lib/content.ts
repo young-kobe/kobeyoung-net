@@ -28,7 +28,7 @@ function readingMinutes(text: string): number {
 
 const CONTENT_DIR = path.join(process.cwd(), "content");
 
-export type ProjectStatus = "shipped" | "in-progress" | "planned";
+export type ProjectStatus = "shipped" | "in-progress" | "planned" | "paused";
 
 export interface ProjectFrontmatter {
   title: string;
@@ -88,7 +88,7 @@ function requireString(fm: any, key: string, slug: string): string {
 function validateProject(fm: any, slug: string): ProjectFrontmatter {
   const status = fm.status;
   if (!["shipped", "in-progress", "planned", "paused"].includes(status)) {
-    throw new Error(`content/${slug}: status must be shipped | in-progress | planned`);
+    throw new Error(`content/${slug}: status must be shipped | in-progress | planned | paused`);
   }
   return {
     title: requireString(fm, "title", slug),
