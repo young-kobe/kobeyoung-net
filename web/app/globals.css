@@ -2,27 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design tokens — light theme is the default; .dark overrides. Values are space-
-   separated RGB channels so Tailwind's <alpha-value> works. */
+/* Design tokens — "Decode" palette (instrument/scope, not the usual dev near-black).
+   Light theme is the default; .dark overrides. Values are space-separated RGB
+   channels so Tailwind's <alpha-value> works. Font families (--font-display /
+   --font-sans / --font-mono) are set on <html> by next/font; see layout.tsx. */
 :root {
-  --bg: 250 250 249;
-  --surface: 255 255 255;
-  --border: 228 228 231;
-  --fg: 24 24 27;
-  --muted: 113 113 122;
-  --accent: 37 99 235;
-
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  --bg: 246 244 240; /* warm paper */
+  --surface: 252 251 248;
+  --border: 228 224 216;
+  --fg: 20 24 31; /* ink */
+  --muted: 107 111 120;
+  --accent: 224 86 31; /* signal orange (deepened for light contrast) */
+  --accent-2: 17 148 125; /* teal — carets + data only */
 }
 
 .dark {
-  --bg: 9 9 11;
-  --surface: 24 24 27;
-  --border: 39 39 42;
-  --fg: 244 244 245;
-  --muted: 161 161 170;
-  --accent: 96 165 250;
+  --bg: 11 14 20; /* scope ink */
+  --surface: 18 22 31;
+  --border: 35 42 54;
+  --fg: 230 225 215; /* warm off-white */
+  --muted: 138 143 156;
+  --accent: 255 120 73; /* signal orange */
+  --accent-2: 91 214 192; /* teal */
 }
 
 html {
@@ -32,15 +33,57 @@ html {
 body {
   background-color: rgb(var(--bg));
   color: rgb(var(--fg));
-  font-family: var(--font-sans);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Respect users who prefer reduced motion. */
+/* Display + mono utility families (used by the design system below and components). */
+.font-display {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+}
+.font-mono {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Mono "eyebrow" label that sits over a hairline rule — the page's data voice. */
+.eyebrow {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  color: rgb(var(--accent));
+}
+
+/* ---- Motion: one orchestrated load + quiet scroll reveals ---- */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes caret-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.animate-rise { animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Scroll reveal: hidden until <Reveal> adds .is-in (IntersectionObserver). */
+.reveal { opacity: 0; transform: translateY(16px); }
+.reveal.is-in { animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* The decoding caret that trails the streaming hero headline. */
+.caret {
+  display: inline-block;
+  width: 0.6ch;
+  margin-left: 0.1ch;
+  color: rgb(var(--accent-2));
+  animation: caret-blink 1s step-end infinite;
+}
+
+/* Respect users who prefer reduced motion — no decode, no rise, no blink. */
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
+  html { scroll-behavior: auto; }
+  .animate-rise, .reveal, .reveal.is-in { animation: none; opacity: 1; transform: none; }
+  .caret { animation: none; }
 }
 
 /* Visible focus ring for keyboard users (WCAG AA). */
@@ -56,15 +99,18 @@ body {
   max-width: 72ch;
 }
 .prose h2 {
-  font-size: 1.5rem;
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.6rem;
   font-weight: 700;
+  letter-spacing: -0.01em;
   margin-top: 2.5rem;
   margin-bottom: 1rem;
   scroll-margin-top: 6rem;
 }
 .prose h3 {
-  font-size: 1.2rem;
-  font-weight: 600;
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
   margin-top: 2rem;
   margin-bottom: 0.75rem;
   scroll-margin-top: 6rem;

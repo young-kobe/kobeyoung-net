@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { getPost, getPosts, formatDate } from "@/lib/content";
 import { MdxContent } from "@/components/MdxContent";
-import { Tag } from "@/components/ui";
+import { BackLink, Tag } from "@/components/ui";
 
 export function generateStaticParams() {
   return getPosts().map((p) => ({ slug: p.slug }));
@@ -39,9 +38,9 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
   return (
     <article>
-      <Link href="/blog" className="text-sm text-accent hover:underline">← All writeups</Link>
-      <header className="mt-4">
-        <h1 className="text-3xl font-bold tracking-tight">{fm.title}</h1>
+      <BackLink href="/blog">← all writeups</BackLink>
+      <header className="mt-5">
+        <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">{fm.title}</h1>
         <div className="mt-2 text-sm text-muted">
           {formatDate(fm.date)} · {post.readingMinutes} min read
         </div>

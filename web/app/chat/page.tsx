@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DemoChat } from "@/components/DemoChat";
+import { PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = {
   title: "KobeLLM",
@@ -9,9 +10,9 @@ export const metadata: Metadata = {
 export default function DemoPage() {
   return (
     <div className="max-w-2xl">
-      <h1 className="text-3xl font-bold tracking-tight">Live LLM Demo</h1>
-      <p className="mt-2 text-muted">
-        Welcome to KobeLLM! This is a live AI chat interface with a self-hosted 
+      <PageHeader eyebrow="~/kobellm" title="Live LLM Demo" />
+      <p className="mt-4 text-muted">
+        Welcome to KobeLLM! This is a live AI chat interface with a self-hosted
         open-source LLM served by LLama.cpp (now),  but will be ran on my hand 
         written miniature-inference-engine (in progress) in future! Tokens stream over SSE.
       </p>
