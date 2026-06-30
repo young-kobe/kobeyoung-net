@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getProject, getProjects, formatDate } from "@/lib/content";
 import { MdxContent } from "@/components/MdxContent";
 import { BackLink, StatusBadge, Tag } from "@/components/ui";
+import { DecodeText } from "@/components/DecodeText";
 
 export function generateStaticParams() {
   return getProjects().map((p) => ({ slug: p.slug }));
@@ -36,7 +37,12 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
 
       <header className="mt-5">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">{fm.title}</h1>
+          <DecodeText
+            as="h1"
+            text={fm.title}
+            speed={60}
+            className="text-balance font-display text-3xl font-bold tracking-tight sm:text-4xl"
+          />
           <StatusBadge status={fm.status} />
         </div>
         <p className="mt-3 text-lg text-muted">{fm.summary}</p>

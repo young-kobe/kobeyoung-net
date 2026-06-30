@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getPost, getPosts, formatDate } from "@/lib/content";
 import { MdxContent } from "@/components/MdxContent";
 import { BackLink, Tag } from "@/components/ui";
+import { DecodeText } from "@/components/DecodeText";
 
 export function generateStaticParams() {
   return getPosts().map((p) => ({ slug: p.slug }));
@@ -40,7 +41,12 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     <article>
       <BackLink href="/blog">← all writeups</BackLink>
       <header className="mt-5">
-        <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">{fm.title}</h1>
+        <DecodeText
+          as="h1"
+          text={fm.title}
+          speed={60}
+          className="text-balance font-display text-3xl font-bold tracking-tight sm:text-4xl"
+        />
         <div className="mt-2 text-sm text-muted">
           {formatDate(fm.date)} · {post.readingMinutes} min read
         </div>

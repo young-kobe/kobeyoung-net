@@ -30,6 +30,18 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Brand-tinted text selection. */
+::selection {
+  background-color: rgb(var(--accent) / 0.25);
+}
+
+/* Headings wrap in balanced lines rather than leaving orphans. */
+h1,
+.prose h2,
+.prose h3 {
+  text-wrap: balance;
+}
+
 body {
   background-color: rgb(var(--bg));
   color: rgb(var(--fg));
@@ -148,15 +160,14 @@ body {
   padding: 0.1rem 0.3rem;
 }
 
-/* ---- Code blocks (rehype-pretty-code / shiki) ---- */
+/* ---- Code blocks (rehype-pretty-code / shiki) ----
+   Border / radius / vertical margin live on the CodeBlock window wrapper (see
+   CopyButton.tsx); the <pre> itself only owns type, padding, and scroll. */
 .prose pre {
-  font-family: var(--font-mono);
+  font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 0.85rem;
-  border: 1px solid rgb(var(--border));
-  border-radius: 0.5rem;
   padding: 1rem;
   overflow-x: auto;
-  margin-bottom: 1.5rem;
 }
 /* shiki sets per-token colors; map both themes via the data attribute it emits. */
 pre[data-theme],

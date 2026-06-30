@@ -1,7 +1,9 @@
 /** Central site metadata. Edit here to update SEO defaults, nav, and social links. */
 export const site = {
-  name: "Kobe's portfolio website",
-  title: "Kobe's portfolio website",
+  // `name` is the wordmark/author used in the SEO title template, footer, and prose.
+  name: "Kobe Young",
+  // `title` is the homepage <title> and default OG title.
+  title: "Kobe Young — Software & Systems Engineer",
   description:
     "Software engineer and U.S. Navy avionics veteran. Real-time data pipelines, RAG/LLM serving, and distributed backends on AWS/Azure.",
   url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
@@ -17,7 +19,7 @@ export const site = {
     { href: "/projects", label: "Projects" },
     // { href: "/blog", label: "Blog" },
     { href: "/chat", label: "KobeLLM" },
-    { href: "/about", label: "About" },
+    { href: "/about", label: "About Me" },
     { href: "/contact", label: "Contact" },
   ],
 } as const;

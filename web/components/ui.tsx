@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ProjectStatus } from "@/lib/content";
+import { DecodeText } from "./DecodeText";
 
 /** Mono eyebrow over a hairline rule — the recurring "data voice" label. */
 export function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -23,9 +24,23 @@ export function PageHeader({
 }) {
   return (
     <header>
-      <SectionLabel>{eyebrow}</SectionLabel>
-      <h1 className="mt-4 font-display text-3xl font-bold tracking-tight sm:text-4xl">{title}</h1>
-      {lead && <p className="mt-3 max-w-2xl text-muted">{lead}</p>}
+      <div className="animate-rise">
+        <SectionLabel>{eyebrow}</SectionLabel>
+      </div>
+      <div className="mt-4 animate-rise" style={{ animationDelay: "80ms" }}>
+        <DecodeText
+          as="h1"
+          text={title}
+          startDelay={140}
+          speed={70}
+          className="text-balance font-display text-3xl font-bold tracking-tight sm:text-4xl"
+        />
+      </div>
+      {lead && (
+        <p className="mt-3 max-w-2xl text-muted animate-rise" style={{ animationDelay: "180ms" }}>
+          {lead}
+        </p>
+      )}
     </header>
   );
 }

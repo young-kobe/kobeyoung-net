@@ -3,14 +3,14 @@ import { site } from "@/lib/site";
 import { PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = {
-  title: "About",
+  title: "About Me",
   description: "Kobe Young — from Navy avionics to software engineering, cloud to systems.",
 };
 
 export default function AboutPage() {
   return (
     <div>
-      <PageHeader eyebrow="~/about" title="About" />
+      <PageHeader eyebrow="~/about" title="About Me" />
       <div className="prose mt-8">
       <p>
         I&apos;m {site.name} — a software engineer with roughly three years of production

@@ -9,9 +9,13 @@ export function Nav() {
       <nav className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
         <Link
           href="/"
-          className="font-display text-base font-bold tracking-tight transition-colors hover:text-accent"
+          aria-label={`${site.name} — home`}
+          className="group inline-flex items-baseline font-display text-base font-bold tracking-tight"
         >
-          {site.name}
+          <span className="transition-colors group-hover:text-accent">kobe young</span>
+          <span aria-hidden="true" className="ml-0.5 text-accent2">
+            _
+          </span>
         </Link>
         <div className="flex items-center gap-1 sm:gap-2">
           <div className="hidden items-center gap-1 sm:flex sm:gap-2">
