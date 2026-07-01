@@ -9,7 +9,7 @@ updates:
   - date: 2026-06-30
     note: First writeups published; retired the placeholder content.
   - date: 2026-06-29
-    note: Initial pass — front end, Go API, and deploy stack stood up end to end.
+    note: Initial pass. Front end, Go API, and deploy stack stood up end to end.
 ---
 
 ## Project Overview
@@ -20,10 +20,10 @@ dependency-free, and how abuse is kept out an interesting domain, hence my desir
 
 The basic monolithic repo structure:
 
-- `web/` — Next.js 15 (App Router, TypeScript, Tailwind). MDX files are the CMS.
-- `api/` — a Go backend on the **standard library only**, zero third-party modules.
-- `packages/contract/` — the single source of truth for the browser↔backend wire shapes.
-- `deploy/` — `docker-compose.yml` + `Caddyfile` for the whole stack.
+- `web/`: Next.js 15 (App Router, TypeScript, Tailwind). MDX files are the CMS.
+- `api/`: a Go backend on the **standard library only**, zero third-party modules.
+- `packages/contract/`: the single source of truth for the browser↔backend wire shapes.
+- `deploy/`: `docker-compose.yml` + `Caddyfile` for the whole stack.
 
 ## The browser only talks to one backend
 
@@ -41,7 +41,7 @@ frontmatter, validated at build time so a malformed file fails the build instead
 shipping a broken page. For example, adding this was: drop in a file, commit, deploy.
 
 ```ts
-// A missing or empty required field throws at build — loud, not silent.
+// A missing or empty required field throws at build (loud, not silent).
 function requireString(fm: any, key: string, slug: string): string {
   const v = fm[key];
   if (typeof v !== "string" || v.trim() === "") {
@@ -84,7 +84,7 @@ choice:
 
 ## The proxy in the middle
 
-The browser never talks to the model directly — it talks to my Go backend, which proxies
+The browser never talks to the model directly; it talks to my Go backend, which proxies
 to the inference engine. That indirection is where the safety controls live:
 
 ```go
@@ -93,7 +93,7 @@ w.Header().Set("Content-Type", "text/event-stream")
 w.Header().Set("X-Accel-Buffering", "no")
 ```
 
-The proxy enforces per-IP and global rate limits, a hard token cap, and a kill-switch —
+The proxy enforces per-IP and global rate limits, a hard token cap, and a kill-switch,
 none of which I'd want to trust a browser to honor.
 
 ## Graceful failure
@@ -112,7 +112,7 @@ A public demo that calls a model is an obvious target, so the defenses stack:
 - Per-IP identity trusts `CF-Connecting-IP` only once ingress is locked to Cloudflare.
 
 On the front end, `middleware.ts` sets a strict, per-request **nonce-based** Content
-Security Policy — the primary defense against injected scripts.
+Security Policy, the primary defense against injected scripts.
 
 ```ts
 const csp = [
@@ -126,7 +126,7 @@ const csp = [
 
 ## Deployment
 
-The whole stack runs on a single Hetzner box behind Caddy and Cloudflare — deliberately not
+The whole stack runs on a single Hetzner box behind Caddy and Cloudflare, deliberately not
 a managed platform. Caddy terminates TLS and reverse-proxies; Cloudflare fronts it; the Go
 binary and the Next.js standalone server run as containers. It's a small machine doing an
 honest amount of work, and I own every layer of it.

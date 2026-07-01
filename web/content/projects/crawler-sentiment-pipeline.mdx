@@ -7,7 +7,7 @@ tags: [Go, Python, Web Crawler, NLP, Pipelines]
 
 updates:
   - date: 2026-06-30
-    note: First writeup published — crawler and sentiment pipeline running end to end with snapshot caching.
+    note: First writeup published. Crawler and sentiment pipeline running end to end with snapshot caching.
   - date: 2026-03-29
     note: Human-in-the-loop review queue wired in; low-confidence outputs surface for labeling.
 ---
@@ -21,22 +21,22 @@ confident the model is. Two halves fell out naturally: a crawler that has to be 
 survive crashes, and an analysis pipeline that has to be auditable. Both are generic enough to 
 outlive the thing I first built them for, which is why I'm writing them up on their own.
 
-- **Ingestion — Go.** A crash-resumable crawler with a SQLite frontier, per-domain rate limiting, robots.txt compliance, and content-addressed storage.
-- **Analysis — Python.** A hybrid sentiment analyzer: deterministic signals first, an optional LLM pass second, a human-review loop third.
+- **Ingestion (Go).** A crash-resumable crawler with a SQLite frontier, per-domain rate limiting, robots.txt compliance, and content-addressed storage.
+- **Analysis (Python).** A hybrid sentiment analyzer: deterministic signals first, an optional LLM pass second, a human-review loop third.
 
-The contract between them is a content-addressed store on disk and a SQLite database — the
+The contract between them is a content-addressed store on disk and a SQLite database: the
 crawler writes, the pipeline reads, and neither needs to know the other's internals.
 
 ## A crawler that survives being killed
 
 The whole crawler is organized around a **frontier**: a SQLite table of URLs moving through a
-small state machine — `QUEUED → INFLIGHT → DONE | FAILED`. The interesting requirement is
+small state machine: `QUEUED → INFLIGHT → DONE | FAILED`. The interesting requirement is
 crash-resumability. If the process dies mid-fetch, some URLs are stranded in `INFLIGHT`
 forever unless something reclaims them. So on every startup, anything that's been in flight too
 long gets swept back to `QUEUED`:
 
 ```go
-// RecoverStale requeues items stuck INFLIGHT past a deadline — called on startup
+// RecoverStale requeues items stuck INFLIGHT past a deadline, called on startup
 // so a crashed run resumes cleanly instead of leaking work.
 result, err := f.db.Conn().ExecContext(ctx, `
     UPDATE pages SET state = ?, next_fetch_at = ?, inflight_at = 0
@@ -45,7 +45,7 @@ result, err := f.db.Conn().ExecContext(ctx, `
 ```
 
 Workers claim work in atomic batches with `UPDATE … RETURNING`, so concurrent crawlers never
-hand the same URL to two workers. Failures back off exponentially — 1m, 2m, 4m, 8m — and only
+hand the same URL to two workers. Failures back off exponentially (1m, 2m, 4m, 8m) and only
 become permanent after a retry cap. The state lives entirely in SQLite.
 
 ## Polite by construction
@@ -68,8 +68,8 @@ func (f *Fetcher) getRateLimiter(domain string) *rate.Limiter {
 ```
 
 And `robots.txt` is fetched and cached per host (1-hour TTL) before any path is requested. A
-page flows through one pipeline — robots check → rate-limited fetch → store → extract links →
-mark done — and any stage's failure routes to retryable backoff or permanent failure based on
+page flows through one pipeline (robots check → rate-limited fetch → store → extract links →
+mark done), and any stage's failure routes to retryable backoff or permanent failure based on
 the error.
 
 ## Store once, by content
@@ -84,18 +84,18 @@ h := sha256.Sum256(data)
 hashStr := hex.EncodeToString(h[:])
 path := filepath.Join(s.baseDir, "sha256", hashStr[:2], hashStr+ext)
 if _, err := os.Stat(path); err == nil {
-    return hashStr, nil          // already have it — no-op
+    return hashStr, nil          // already have it, no-op
 }
 // atomic: write to .tmp, then rename into place
 ```
 
-The hash becomes the join key downstream — every analyzed document traces back to the exact
+The hash becomes the join key downstream: every analyzed document traces back to the exact
 bytes it came from.
 
 ## Sentiment, hybrid by design
 
-The analyzer never blindly trusts a model. It computes **deterministic signals** first —
-positive/negative lexicon hits, intensifiers, entity proximity — then decides whether to
+The analyzer never blindly trusts a model. It computes **deterministic signals** first
+(positive/negative lexicon hits, intensifiers, entity proximity), then decides whether to
 involve an LLM at all. If the model is disabled or unreachable, those same signals drive a
 heuristic classification, so the pipeline degrades instead of failing.
 
@@ -127,22 +127,22 @@ def get_llm_client():
     return get_gemini_client()        # cloud
 ```
 
-Both backends enforce the same JSON schema at generation time — Gemini via its
-`response_schema`, Ollama via its `format` parameter — and both retry with exponential
+Both backends enforce the same JSON schema at generation time (Gemini via its
+`response_schema`, Ollama via its `format` parameter), and both retry with exponential
 backoff. Swapping a cloud model for a local one (or back) is a config change, not a code
 change.
 
 <Callout type="note">
   Heavy aggregation never happens at request time. The pipeline pre-computes dashboard
-  snapshots into JSON files (written atomically), and the API just serves those — so reads are
+  snapshots into JSON files (written atomically), and the API just serves those, so reads are
   cheap and the expensive work runs on a schedule.
 </Callout>
 
 ## Keeping the model honest
 
 The piece I'm most attached to is the human-in-the-loop review queue. Instead of asking people
-to label random samples, it surfaces the outputs the model was *least sure about* —
-lowest confidence first — because that's where review buys the most:
+to label random samples, it surfaces the outputs the model was *least sure about*
+(lowest confidence first) because that's where review buys the most:
 
 ```python
 sql = """
@@ -160,6 +160,6 @@ pipeline is calibrated rather than just hoping.
 
 ## What's next
 
-- A real evaluation harness on top of the golden set — precision/recall by source and confidence band.
+- A real evaluation harness on top of the golden set: precision/recall by source and confidence band.
 - Pluggable fetchers beyond the current set, behind the same frontier interface.
-- Packaging the crawler and the analyzer as standalone services — the domain-specific glue is the only thing tying them together today.
+- Packaging the crawler and the analyzer as standalone services: the domain-specific glue is the only thing tying them together today.
