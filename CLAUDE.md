@@ -49,7 +49,8 @@ endpoints directly (`/health`, the SSE demo stream, the contact spam traps).
   (`internal/ratelimit`), honeypot + time-trap + Turnstile on contact, kill-switch + token/input
   caps on the demo. Per-IP keys come from `middleware.ClientIP`, which trusts
   `CF-Connecting-IP`/`X-Forwarded-For` only when `TRUST_PROXY_HEADERS=true` — sound only once
-  ingress is Cloudflare-locked (`deploy/cloudflare-firewall.sh` + Authenticated Origin Pulls).
+  ingress is Cloudflare-locked (Hetzner Cloud Firewall — not ufw, which Docker bypasses — plus
+  Authenticated Origin Pulls).
 - **Frontend security:** `web/middleware.ts` sets a strict per-request **nonce CSP**. Side
   effect: top-level pages render per-request (not fully static); MDX content pages stay SSG.
   `style-src 'unsafe-inline'` is the one deliberate relaxation (Tailwind).

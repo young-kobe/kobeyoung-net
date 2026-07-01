@@ -89,8 +89,9 @@ Threat model: spam/bot abuse, LLM-demo abuse, secret leakage, XSS. Defenses:
   `Permissions-Policy`, and HSTS. (Trade-off: the nonce makes top-level pages render
   per-request rather than fully static; content pages are still prerendered/SSG.)
 - **Ingress locked to Cloudflare.** Per-IP controls trust `CF-Connecting-IP`, which is only
-  sound if the origin can't be reached directly. Enforce with the host firewall
-  (`deploy/cloudflare-firewall.sh`) **and** Authenticated Origin Pulls (mTLS, see the
+  sound if the origin can't be reached directly. Enforce with the **Hetzner Cloud Firewall**
+  (allow 80/443 only from Cloudflare's IP ranges — a host `ufw` can't, since Docker's
+  published ports bypass it) **and** Authenticated Origin Pulls (mTLS, see the
   `Caddyfile`). `TRUST_PROXY_HEADERS` gates this in the app and is safe-by-default off.
 - **CORS** is set on the backend, but it's a *browser* control only — `curl`/server-side
   callers send no `Origin` and aren't blocked by it. The real API-abuse defenses are the
@@ -143,19 +144,31 @@ won't change when you swap the model.
 
 1. DNS: add your domain to Cloudflare, point an A record at the Hetzner box, enable the
    orange-cloud proxy. Turn on Bot Fight Mode and a WAF rate-limit rule on `/api/contact`.
-2. **Lock ingress to Cloudflare (required).** Run `sudo bash deploy/cloudflare-firewall.sh`
-   so 80/443 accept only Cloudflare IPs, and enable Authenticated Origin Pulls (uncomment
-   the `tls` block in the `Caddyfile` after mounting Cloudflare's origin-pull CA). Until
-   this is done, keep `TRUST_PROXY_HEADERS=false`. See SECURITY-AUDIT.md H1.
-3. **Enable Turnstile (required for prod).** Set `TURNSTILE_ENABLED=true` + `TURNSTILE_SECRET`
-   in `api/.env` and `NEXT_PUBLIC_TURNSTILE_SITE_KEY` in `web/.env`.
-4. On the box: install Docker, clone the repo, fill `api/.env`, and set `SITE_DOMAIN`,
-   `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_API_URL` (e.g. `https://kobeyoung.net` and
-   `https://kobeyoung.net/api`).
-5. `cd deploy && docker compose up --build -d`. Caddy obtains a Let's Encrypt cert
-   automatically (use Cloudflare "Full (strict)" TLS). The `/api/*` path proxies to the Go
-   backend (with SSE buffering disabled); everything else to Next.js.
-6. Set `ALLOWED_ORIGINS=https://kobeyoung.net` in `api/.env`.
+2. **Lock ingress to Cloudflare (required).** Create a **Hetzner Cloud Firewall** allowing
+   inbound 80/443 only from Cloudflare's published IP ranges (and 22 for SSH). A host `ufw`
+   won't do — Docker's published ports bypass it, so the lock must be at the network edge.
+   Optionally also enable Authenticated Origin Pulls (add a `client_auth` stanza to the
+   origin-cert `tls` directive in the `Caddyfile` after mounting Cloudflare's origin-pull
+   CA). Until the lock is in place, keep `TRUST_PROXY_HEADERS=false`. See SECURITY-AUDIT.md H1.
+3. **Enable Turnstile (required for prod).** Put `TURNSTILE_ENABLED=true` + `TURNSTILE_SECRET`
+   in `api/.env` (server-side secret); put the public site key as `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
+   in `deploy/.env` (compose inlines it into the web build — *not* `web/.env`, which is only
+   for local `npm run dev`).
+4. On the box: install Docker, clone the repo, and create two env files:
+   - `api/.env` — secrets (Resend key, Turnstile secret). `ALLOWED_ORIGINS`,
+     `MODEL_BASE_URL`/`MODEL_NAME`, and `TRUST_PROXY_HEADERS` here are **overridden** by
+     `docker-compose.yml`, so set those via `deploy/.env` instead.
+   - `deploy/.env` — compose interpolation: `SITE_DOMAIN=kobeyoung.net`,
+     `NEXT_PUBLIC_SITE_URL=https://kobeyoung.net`, `NEXT_PUBLIC_API_URL=https://kobeyoung.net/api`,
+     `NEXT_PUBLIC_TURNSTILE_SITE_KEY=…`, and `TRUST_PROXY_HEADERS` (false until the Cloudflare
+     ingress lock from step 2 is in place, then true). `ALLOWED_ORIGINS` is derived from
+     `NEXT_PUBLIC_SITE_URL` automatically.
+5. **TLS via Cloudflare Origin Certificate.** In Cloudflare → SSL/TLS → Origin Server, create
+   an Origin Certificate for `kobeyoung.net, *.kobeyoung.net`; save the cert and key to
+   `deploy/cloudflare-origin.pem` and `deploy/cloudflare-origin.key` (git-ignored; mounted
+   read-only into Caddy, which serves them via the `tls` directive — no ACME). Set the zone's
+   SSL/TLS mode to **Full (strict)**. Then `cd deploy && docker compose up --build -d`. The
+   `/api/*` path proxies to the Go backend (SSE buffering disabled); everything else to Next.js.
 
 > **Note on streaming:** Caddy is configured with `flush_interval -1` for `/api/*` and the
 > backend sends `X-Accel-Buffering: no`, so demo tokens stream without proxy buffering.
