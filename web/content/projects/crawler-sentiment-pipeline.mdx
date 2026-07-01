@@ -1,7 +1,7 @@
 ---
 title: Crawler + Sentiment Pipeline
 date: 2026-06-30
-summary: A polite, crash-resumable web crawler in Go feeding a hybrid sentiment-analysis pipeline in Python — deterministic signals refined by a pluggable LLM, every output traceable to verbatim source text and gated by a human-review loop.
+summary: A polite, crash-resumable web crawler in Go feeding a hybrid sentiment-analysis pipeline in Python, deterministic signals refined by a pluggable LLM, every output traceable to verbatim source text and gated by a human-review loop.
 status: paused
 tags: [Go, Python, Web Crawler, NLP, Pipelines]
 
@@ -12,13 +12,14 @@ updates:
     note: Human-in-the-loop review queue wired in; low-confidence outputs surface for labeling.
 ---
 
-## Why build it this way
+## Project overview
 
-This started as the plumbing under a content-analysis tool: pull text from the open web at
-scale, score it for sentiment, and never lie about how confident the model is. Two halves fell
-out naturally — a crawler that has to be polite and survive crashes, and an analysis pipeline
-that has to be auditable. Both are generic enough to outlive the thing I first built them for,
-which is why I'm writing them up on their own.
+I started this project as a public sentiment and propaganda anaysis tool intended to promote 
+and highlight the delta between the two in times of ever growing uncertainty.  The flow is as
+follows: pull text from the open web at scale, score it for sentiment, and never lie about how 
+confident the model is. Two halves fell out naturally: a crawler that has to be polite and 
+survive crashes, and an analysis pipeline that has to be auditable. Both are generic enough to 
+outlive the thing I first built them for, which is why I'm writing them up on their own.
 
 - **Ingestion — Go.** A crash-resumable crawler with a SQLite frontier, per-domain rate limiting, robots.txt compliance, and content-addressed storage.
 - **Analysis — Python.** A hybrid sentiment analyzer: deterministic signals first, an optional LLM pass second, a human-review loop third.
@@ -45,8 +46,7 @@ result, err := f.db.Conn().ExecContext(ctx, `
 
 Workers claim work in atomic batches with `UPDATE … RETURNING`, so concurrent crawlers never
 hand the same URL to two workers. Failures back off exponentially — 1m, 2m, 4m, 8m — and only
-become permanent after a retry cap. The state lives entirely in SQLite, so "resume" is just
-"start the binary again."
+become permanent after a retry cap. The state lives entirely in SQLite.
 
 ## Polite by construction
 
