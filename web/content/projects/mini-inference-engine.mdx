@@ -1,30 +1,32 @@
 ---
 title: Mini Inference Engine
 date: 2026-06-30
-summary: A from-scratch LLM inference serving core in C++20/CUDA — a paged KV-cache allocator, a continuous-batching scheduler, and paged attention — built to actually implement the load-bearing parts of a modern engine rather than import them.
+summary: A from-scratch LLM inference serving core in C++20/CUDA including a paged KV-cache allocator, a continuous-batching scheduler, and paged attention. Built to implement the load-bearing parts of a modern engine rather than import them.
 status: in-progress
 tags: [C++, CUDA, Systems, LLM, Inference]
 
 updates:
   - date: 2026-06-30
-    note: First writeup published — allocator, prefix sharing, and scheduler are done and tested; compute path is the next phase.
+    note: First writeup published. Allocator, prefix sharing, and scheduler are done and tested; compute path is the next phase.
   - date: 2026-06-29
-    note: Phase 3 landed — the reap → admit → decode scheduler with LIFO preemption and prefix caching.
+    note: Phase 3 landed. The reap → admit → decode scheduler with LIFO preemption and prefix caching.
 ---
 
-## Why build it this way
+## Project Overview
 
-Modern inference servers like vLLM are fast because of a few specific ideas — paging the
+A miniature LLM inference serving engine hand coded in c++ with no external dependencies.
+Modern inference servers like vLLM are fast because of a few specific ideas, paging the
 KV cache like an OS pages memory, batching requests continuously instead of in fixed waves,
-and reading attention from scattered blocks. I wanted to understand those ideas by
-implementing them, not by reading about them. So this is a real serving core written from
-scratch in C++20 and CUDA. The goal is not to beat vLLM; it's to get the mechanics right and
-benchmark them honestly against naive baselines.
+and reading attention from scattered blocks. What I want from this is two fold: learn how to
+build an inference engine and to become a better engineer in general. This is why I chose to hand
+code all .cpp files using tests as spec. I learn better from building truth be told. 
+So this is will be a real serving core written from scratch in C++20 and CUDA. The goal is not to beat vLLM; 
+it's to get the mechanics right and benchmark them honestly against naive baselines.
 
 The build splits cleanly so the bulk of development needs no GPU:
 
-- `mie_core` — pure C++20, always compiles: the allocator, the scheduler, the CPU reference ops.
-- `mie_cuda` — only built with `-DUSE_CUDA=ON`: the paged-attention kernel, targeting a Jetson Orin Nano.
+- `mie_core`: pure C++20, always compiles: the allocator, the scheduler, the CPU reference ops.
+- `mie_cuda`: only built with `-DUSE_CUDA=ON`: the paged-attention kernel, targeting a Jetson Orin Nano.
 
 A single `MIE_WITH_CUDA` macro selects the path at build time, and the GPU output is verified
 against the CPU reference for correctness. The whole CPU codebase stays compilable with a
@@ -38,7 +40,7 @@ worth of K/V). Blocks are interchangeable and scattered across a global pool; ea
 keeps a **block table** mapping logical token position to physical block. To the attention
 kernel the blocks look contiguous; to the allocator they're just integer IDs in a free list.
 
-That indirection is what kills external fragmentation — any free block fits any sequence — and
+That indirection is what kills external fragmentation, any free block fits any sequence, and
 it's what makes sharing possible.
 
 ```cpp
@@ -50,7 +52,7 @@ class BlockPool {
 };
 ```
 
-Everything is pre-allocated in the constructor — no dynamic allocation during execution, and
+Everything is pre-allocated in the constructor: no dynamic allocation during execution, and
 out-of-memory is a sentinel (`kInvalidBlock`), not an exception. Reference counting is a plain
 `vector<int>` rather than `shared_ptr`, because GPU blocks are integer IDs, not host pointers.
 
@@ -64,7 +66,7 @@ out-of-memory is a sentinel (`kInvalidBlock`), not an exception. Reference count
 
 Two requests that start with the same prompt shouldn't store that prompt twice. When a new
 sequence is admitted, the scheduler finds the longest common token prefix among running
-sequences and borrows those blocks instead of copying them — just bumping their refcount.
+sequences and borrows those blocks instead of copying them, just bumping their refcount.
 
 The first time anyone writes into a shared block, it splits. The ordering of that split is the
 entire safety story:
@@ -73,9 +75,9 @@ entire safety story:
 std::byte* BlockTable::writable_block(std::size_t pos) {
   const BlockId old_block = blocks_[pos / block_size_];
   if (pool_->refcount(old_block) == 1)
-    return pool_->block_data(old_block);          // private — write in place
+    return pool_->block_data(old_block);          // private: write in place
 
-  const BlockId new_block = pool_->allocate();     // shared — make a private copy
+  const BlockId new_block = pool_->allocate();     // shared: make a private copy
   if (new_block == kInvalidBlock) return nullptr;  // can fail under pressure
   std::memcpy(pool_->block_data(new_block),
               pool_->block_data(old_block), pool_->bytes_per_block());
@@ -91,7 +93,7 @@ the batch automatically decrefs everything it held.
 
 ## Continuous batching
 
-The scheduler runs an iteration-level loop — new requests join the running batch between decode
+The scheduler runs an iteration-level loop: new requests join the running batch between decode
 steps instead of waiting for the current wave to drain. Each step is **reap → admit → decode**,
 and there's no state enum: a sequence's state *is* which container it lives in.
 
@@ -100,7 +102,7 @@ std::deque<Sequence>  waiting_;   // FCFS queue; front = next to admit
 std::vector<Sequence> running_;   // the live batch; back() = preemption victim
 ```
 
-Admission is strict FCFS — it prefills one waiting sequence at a time and stops at the first
+Admission is strict FCFS: it prefills one waiting sequence at a time and stops at the first
 one that doesn't fit. Decode advances every running sequence by a token; when one can't get a
 block, the scheduler preempts a victim **LIFO** (most-recently-admitted first), drops that
 victim's blocks but keeps its logical progress, and re-queues it at the *front* so it gets
@@ -121,8 +123,8 @@ bool Scheduler::preempt_once(int id) {
 ```
 
 Recompute-on-readmit is the simple preemption model; swapping blocks to host memory is a later
-optimization. Every step emits a trace — pool utilization, internal fragmentation, the fraction
-of blocks saved by sharing — so the behavior is observable rather than inferred.
+optimization. Every step emits a trace (pool utilization, internal fragmentation, the fraction
+of blocks saved by sharing), so the behavior is observable rather than inferred.
 
 ## What's real, and what's roadmap
 
@@ -131,19 +133,19 @@ overclaim.
 
 <Callout type="tip">
   **Done and tested (Phases 1–3):** the block pool, the per-sequence block table with prefix
-  sharing and copy-on-write, and the full continuous-batching scheduler — admission,
-  preemption, fairness, prefix caching — under ~40 passing GoogleTest cases.
+  sharing and copy-on-write, and the full continuous-batching scheduler (admission,
+  preemption, fairness, prefix caching) under ~40 passing GoogleTest cases.
 </Callout>
 
 The compute path is the next phase and it's genuinely not started: the CPU reference ops
 (RMSNorm, RoPE, SwiGLU, paged-attention gather) are stubs whose unit tests are written as
 the spec, and the CUDA kernel is a placeholder that compiles on the Orin but does nothing yet.
-That's deliberate sequencing, not abandonment — the memory layer is the hard, interesting part,
+That's deliberate sequencing, not abandonment: the memory layer is the hard, interesting part,
 and it's the part that's finished.
 
 ## What's next
 
-- Fill in the CPU reference ops so the failing op tests turn green — that's the correctness oracle.
+- Fill in the CPU reference ops so the failing op tests turn green: that's the correctness oracle.
 - Write the real paged-attention CUDA kernel and validate it against the CPU reference on the Orin.
 - A safetensors loader (hand-rolled, bf16 → fp32 at load) to run an actual small model end to end.
-- Benchmarks: paged vs. contiguous cache, sharing hit-rate, throughput curves — measured, not asserted.
+- Benchmarks: paged vs. contiguous cache, sharing hit-rate, throughput curves (measured, not asserted).

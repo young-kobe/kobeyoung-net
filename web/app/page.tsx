@@ -38,9 +38,11 @@ export default function HomePage() {
           className="mt-6 max-w-2xl text-lg leading-relaxed text-muted animate-rise"
           style={{ animationDelay: "120ms" }}
         >
-          Three years shipping production data pipelines, RAG/LLM serving, and distributed
-          backends on AWS and Azure. Former Navy avionics technician and residential
-          electrician, now working my way down the stack toward systems and inference.
+          Building the behind-the-scenes systems that move data and
+          run AI models, the parts people never see but use every day. Concretely: real-time
+          data pipelines, RAG/LLM serving, and distributed backends on AWS and Azure. Former
+          Navy avionics technician and residential electrician, now working my way down the
+          stack toward systems and inference.
         </p>
         <div
           className="mt-8 flex flex-wrap gap-3 animate-rise"
