@@ -1,19 +1,20 @@
-name: CI / Deploy
+name: CI
 
-# CI runs on every PR to main and on pushes to main. Deploy runs only after CI passes
-# on a push to main: GitHub Actions SSHes into the Hetzner box, where the CI key is
-# locked (authorized_keys forced command) to /root/ci-deploy.sh — that launcher pulls
-# origin/main and runs deploy/deploy.sh (build-on-box). See README "CI/CD".
+# On every PR and push to main: run CI (gofmt/build/vet, `next build` which runs ESLint,
+# `npm audit`). On push to main only, after CI passes: build the web + api images and push
+# them to GHCR. Deploy is MANUAL and pull-based (see README "CI / Deploy"): you SSH to the box
+# and run `git pull --ff-only && bash deploy/deploy.sh` (aliased to `deploy`), which pulls those
+# images. Nothing reaches into the box from GitHub, so no inbound deploy path and port 22 stays
+# firewalled to the operator's IP.
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
-# One run per ref. Cancel superseded PR runs; never cancel an in-flight deploy on main.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -50,8 +51,8 @@ jobs:
       - name: Web — install, build (build runs ESLint), audit
         working-directory: web
         env:
-          # NEXT_PUBLIC_* are inlined at build time; CI only needs the build to succeed,
-          # so these are placeholders (the real values are baked on the box at deploy).
+          # NEXT_PUBLIC_* are inlined at build time; the CI check only needs the build to
+          # succeed. The real image build (below) bakes the production values.
           NEXT_PUBLIC_SITE_URL: https://kobeyoung.net
           NEXT_PUBLIC_API_URL: https://kobeyoung.net/api
           NEXT_PUBLIC_TURNSTILE_SITE_KEY: ci-placeholder
@@ -61,17 +62,57 @@ jobs:
           npm run build
           npm audit --audit-level=high
 
-  deploy:
+  build-push:
     needs: ci
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # push to GHCR
+    strategy:
+      matrix:
+        include:
+          - image: web
+            context: .
+            dockerfile: web/Dockerfile
+            # NEXT_PUBLIC_* are public (inlined into the client bundle) — safe to bake here.
+            build_args: |
+              NEXT_PUBLIC_SITE_URL=https://kobeyoung.net
+              NEXT_PUBLIC_API_URL=https://kobeyoung.net/api
+              NEXT_PUBLIC_TURNSTILE_SITE_KEY=0x4AAAAAADtrDymJT-GzGxwq
+          - image: api
+            context: api
+            dockerfile: api/Dockerfile
+            build_args: ""
     steps:
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.2.2
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: root
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          # The remote enforces a forced command, so this script arg is ignored — whatever
-          # we send, the box runs /root/ci-deploy.sh. We send a no-op for clarity.
-          script: "true"
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata (tags + labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/kobeyoung-net-${{ matrix.image }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ matrix.build_args }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
-# Box-side deploy step, run by CI on push to main.
+# Box-side deploy step (compose pull + restart). Run it manually after syncing the repo:
+#   cd /opt/kobeyoung-net && git pull --ff-only && bash deploy/deploy.sh   (aliased to `deploy`)
+# Pulling first means this script always runs fresh (no mid-run self-modification). Human-gated
+# — see README "CI / Deploy". Kept in git so the procedure is versioned.
 #
-# The CI SSH key is locked (forced command) to a small stable launcher at
-# /root/ci-deploy.sh that has ALREADY fetched origin and hard-reset the repo to
-# origin/main before exec'ing this script. Keeping the build/restart logic here (in
-# git) means the deploy procedure is versioned; the launcher stays tiny and stable so
-# it never rewrites itself mid-run.
+# Pull-based: the web/api images are built + pushed to GHCR by CI, so the box only pulls and
+# restarts — it never builds. A no-op when nothing changed. A failed pull leaves the running
+# stack untouched.
 #
-# Build-on-box: `docker compose up --build` rebuilds images then recreates containers.
-# If a build fails the command errors out and the currently-running stack is left
-# untouched — the live site stays up on the old containers.
+# Pull ONLY our own images — pulling all services would also re-check the moving third-party
+# tags (caddy:2-alpine, llama.cpp:server) and could auto-update/restart them unexpectedly.
+# `up -d` uses pull_policy: missing, so those base images stay put unless absent.
 set -euo pipefail
 
 cd "$(dirname "$0")" # -> deploy/  (compose reads ./ .env and ../api/.env from here)
 
-docker compose up --build -d --remove-orphans
+docker compose pull web api
+docker compose up -d --remove-orphans
 docker image prune -f

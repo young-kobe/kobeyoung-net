@@ -28,6 +28,8 @@ deploy/cloudflare-origin-pull-ca.pem
 # OS / editor
 .DS_Store
 *.swp
+# Windows "mark of the web" alternate-data-stream files (created on WSL/Windows)
+*:Zone.Identifier
 .idea/
 .vscode/
 SECURITY-AUDIT.md
