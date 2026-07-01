@@ -49,6 +49,30 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Terminal texture: a fixed CRT scanline field + a faint dot grid behind all
+   content. Non-interactive, theme-aware (uses --fg so it flips with the theme),
+   and kept low-opacity so body text stays crisp. Cards/nav have their own opaque
+   surface, so the texture only shows in the gaps. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      rgb(var(--fg) / 0.035) 0,
+      rgb(var(--fg) / 0.035) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    radial-gradient(rgb(var(--fg) / 0.05) 1px, transparent 1.4px);
+  background-size:
+    100% 3px,
+    22px 22px;
+}
+
 /* Display + mono utility families (used by the design system below and components). */
 .font-display {
   font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
