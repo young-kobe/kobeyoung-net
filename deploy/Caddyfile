@@ -11,9 +11,12 @@
 # SECURITY — lock ingress to Cloudflare (see SECURITY-AUDIT.md H1). The backend trusts the
 # CF-Connecting-IP header for per-IP rate limiting, which is only sound if requests cannot
 # reach the origin except through Cloudflare. Enforce that with BOTH:
-#   1) Host firewall allowing 80/443 only from Cloudflare IPs — run deploy/cloudflare-firewall.sh
-#   2) Authenticated Origin Pulls (mTLS) — uncomment the `tls` block below after mounting
-#      Cloudflare's origin-pull CA. Then only Cloudflare can complete a TLS handshake here.
+#   1) Hetzner Cloud Firewall allowing 80/443 only from Cloudflare's published IP ranges.
+#      (A host-level ufw firewall does NOT work here: Docker publishes 80/443 via its own
+#      iptables rules that bypass ufw, so the lock must be at the network edge.)
+#   2) Authenticated Origin Pulls (mTLS) — add a `client_auth` stanza to the origin-cert
+#      `tls` directive below after mounting Cloudflare's origin-pull CA. Then only Cloudflare
+#      can complete a TLS handshake here.
 
 {$SITE_DOMAIN} {
 	encode gzip zstd

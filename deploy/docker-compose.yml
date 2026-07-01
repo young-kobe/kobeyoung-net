@@ -63,8 +63,9 @@ services:
       ALLOWED_ORIGINS: ${NEXT_PUBLIC_SITE_URL:-http://localhost}
       # Behind Caddy the real client IP arrives in CF-Connecting-IP / X-Forwarded-For, so
       # per-IP rate limiting needs this on. PRECONDITION: ingress MUST be locked to
-      # Cloudflare (run deploy/cloudflare-firewall.sh AND enable Authenticated Origin Pulls
-      # in the Caddyfile) — otherwise an attacker hitting the origin directly can spoof
+      # Cloudflare (Hetzner Cloud Firewall allowing 80/443 only from Cloudflare IPs AND
+      # Authenticated Origin Pulls in the Caddyfile; ufw does NOT work — Docker's published
+      # ports bypass it) — otherwise an attacker hitting the origin directly can spoof
       # these headers and defeat every per-IP control. Without the lock, set this to false.
       TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-true}
     expose:
