@@ -1,0 +1,77 @@
+name: CI / Deploy
+
+# CI runs on every PR to main and on pushes to main. Deploy runs only after CI passes
+# on a push to main: GitHub Actions SSHes into the Hetzner box, where the CI key is
+# locked (authorized_keys forced command) to /root/ci-deploy.sh — that launcher pulls
+# origin/main and runs deploy/deploy.sh (build-on-box). See README "CI/CD".
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# One run per ref. Cancel superseded PR runs; never cancel an in-flight deploy on main.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: api/go.mod
+          cache: false # zero third-party deps by design, no go.sum to cache
+
+      - name: Go — gofmt, build, vet
+        working-directory: api
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "These files need gofmt:"; echo "$unformatted"; exit 1
+          fi
+          go build ./...
+          go vet ./...
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Web — install, build (build runs ESLint), audit
+        working-directory: web
+        env:
+          # NEXT_PUBLIC_* are inlined at build time; CI only needs the build to succeed,
+          # so these are placeholders (the real values are baked on the box at deploy).
+          NEXT_PUBLIC_SITE_URL: https://kobeyoung.net
+          NEXT_PUBLIC_API_URL: https://kobeyoung.net/api
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ci-placeholder
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          npm ci
+          npm run build
+          npm audit --audit-level=high
+
+  deploy:
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # The remote enforces a forced command, so this script arg is ignored — whatever
+          # we send, the box runs /root/ci-deploy.sh. We send a no-op for clarity.
+          script: "true"
