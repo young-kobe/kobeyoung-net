@@ -5,9 +5,9 @@
 #                                    └── api  (Go backend, :8080)
 #                                          └── model (llama.cpp + Qwen2.5-1.5B, :9090)
 #
-# Usage:
-#   cp ../api/.env.example ../api/.env   # fill in secrets
-#   docker compose up --build
+# Usage on the box (manual deploy — see README "CI / Deploy"):
+#   cd /opt/kobeyoung-net && git pull --ff-only && bash deploy/deploy.sh   (aliased to `deploy`)
+# web/api images come from GHCR; the `build:` blocks are for local use only — the box never builds.
 #
 # Only Caddy publishes ports to the host; web/api/mockmodel talk over the internal network.
 
@@ -35,6 +35,9 @@ services:
       - api
 
   web:
+    # Built + pushed to GHCR by CI; the box pulls it (never builds). The `build` block below
+    # is only for local use — `docker compose pull` on the box fetches this image instead.
+    image: ghcr.io/young-kobe/kobeyoung-net-web:latest
     build:
       context: ..
       dockerfile: web/Dockerfile
@@ -49,6 +52,8 @@ services:
     mem_limit: 512m
 
   api:
+    # Built + pushed to GHCR by CI; the box pulls it (never builds).
+    image: ghcr.io/young-kobe/kobeyoung-net-api:latest
     build:
       context: ../api
       dockerfile: Dockerfile

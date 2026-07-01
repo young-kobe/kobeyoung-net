@@ -145,8 +145,10 @@ won't change when you swap the model.
 1. DNS: add your domain to Cloudflare, point an A record at the Hetzner box, enable the
    orange-cloud proxy. Turn on Bot Fight Mode and a WAF rate-limit rule on `/api/contact`.
 2. **Lock ingress to Cloudflare (required).** Create a **Hetzner Cloud Firewall** allowing
-   inbound 80/443 only from Cloudflare's published IP ranges (and 22 for SSH). A host `ufw`
-   won't do — Docker's published ports bypass it, so the lock must be at the network edge.
+   inbound 80/443 only from Cloudflare's published IP ranges, and 22 only from **your own
+   IP** (for admin SSH only — deploys are automated and outbound, see
+   [CI / Deploy](#ci--deploy)). A host `ufw` won't do — Docker's published ports bypass it,
+   so the lock must be at the network edge.
    Optionally also enable Authenticated Origin Pulls (add a `client_auth` stanza to the
    origin-cert `tls` directive in the `Caddyfile` after mounting Cloudflare's origin-pull
    CA). Until the lock is in place, keep `TRUST_PROXY_HEADERS=false`. See SECURITY-AUDIT.md H1.
@@ -167,8 +169,13 @@ won't change when you swap the model.
    an Origin Certificate for `kobeyoung.net, *.kobeyoung.net`; save the cert and key to
    `deploy/cloudflare-origin.pem` and `deploy/cloudflare-origin.key` (git-ignored; mounted
    read-only into Caddy, which serves them via the `tls` directive — no ACME). Set the zone's
-   SSL/TLS mode to **Full (strict)**. Then `cd deploy && docker compose up --build -d`. The
-   `/api/*` path proxies to the Go backend (SSE buffering disabled); everything else to Next.js.
+   SSL/TLS mode to **Full (strict)**.
+6. **Set up pull deploys** (see [CI / Deploy](#ci--deploy)): `docker login ghcr.io` with a
+   read-only `read:packages` token so the box can pull the private images. First bring-up:
+   `cd deploy && docker compose pull web api && docker compose up -d`; thereafter deploy with
+   `git pull --ff-only && bash deploy/deploy.sh` (alias it to `deploy`, see
+   [CI / Deploy](#ci--deploy)). The `/api/*` path proxies to the Go backend (SSE buffering
+   disabled); everything else to Next.js.
 
 > **Note on streaming:** Caddy is configured with `flush_interval -1` for `/api/*` and the
 > backend sends `X-Accel-Buffering: no`, so demo tokens stream without proxy buffering.
@@ -177,3 +184,47 @@ won't change when you swap the model.
 Everything runs on the one Hetzner box via `deploy/docker-compose.yml` — no external host
 or platform. The Next.js frontend is containerized (`output: "standalone"`) and served by
 Caddy alongside the Go backend, so the whole system is self-hosted on hardware you control.
+
+## CI / Deploy
+
+Deploys are **manual and pull-based** — human-gated, and nothing ever reaches into the box.
+
+On merge to `main`, GitHub Actions (`.github/workflows/deploy.yml`) runs two jobs:
+
+1. **`ci`** (also on PRs): gofmt/`go build`/`go vet`, `next build` (which runs ESLint), `npm audit`.
+2. **`build-push`** (main only, after CI): builds the `web` + `api` images and pushes them to
+   GHCR — `ghcr.io/young-kobe/kobeyoung-net-{web,api}`, tagged `:latest` and `:sha-<commit>`.
+
+Building in CI keeps builds **off the box** (which is RAM-tight with the model resident). To
+ship, you sync the repo and pull the freshly-built images when you're ready:
+
+```bash
+ssh kobeyoung                                             # or: ssh -4 root@<box-ip>
+cd /opt/kobeyoung-net && git pull --ff-only && bash deploy/deploy.sh
+```
+
+`git pull` lands any `docker-compose.yml`/config changes; `deploy/deploy.sh` then does
+`docker compose pull web api && up -d` + an image prune. Running the pull first means
+`deploy.sh` is always executed fresh — no mid-run self-modification. A failed pull leaves the
+running stack untouched, so the live site stays up. For convenience, alias the whole thing on
+the box:
+
+```bash
+echo "alias deploy='cd /opt/kobeyoung-net && git pull --ff-only && bash deploy/deploy.sh'" >> ~/.bashrc
+# then just run:  deploy
+```
+
+Every deploy connection is outbound (box → GHCR + your admin SSH), so there's no inbound deploy
+path — port 22 stays firewalled to the operator's IP. Secrets (`api/.env`) and the origin cert
+(`deploy/cloudflare-origin.*`) are git-ignored and live only on the box, so the `git pull`
+never disturbs them.
+
+**Box setup (one-time):** let the box pull the private GHCR images with a read-only token:
+
+```bash
+echo "<GHCR_READ_TOKEN>" | docker login ghcr.io -u young-kobe --password-stdin
+```
+
+**Rollback:** repin a known-good image in `deploy/docker-compose.yml` (`:latest` → `:sha-<commit>`),
+commit, and `deploy` — or on the box, edit the tag and `docker compose pull web api &&
+docker compose up -d`.

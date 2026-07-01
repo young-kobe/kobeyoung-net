@@ -51,9 +51,18 @@ export function DecodeText({
 
   return (
     <Tag className={className} aria-label={text}>
-      <span aria-hidden="true">
-        {tokens.slice(0, shown).join(" ")}
-        {!done && <span className="caret">▋</span>}
+      <span className="relative block" aria-hidden="true">
+        {/* Invisible full text reserves the final wrapped box up front, so revealing
+            tokens one-by-one never re-wraps the lines. Without this, each added word
+            grows the string and reflows every line — on narrow/mobile widths words
+            visibly jump between rows, which reads as a fast, glitchy flicker. */}
+        <span className="invisible">{text}</span>
+        {/* Animated layer, overlaid on the reserved box; wraps identically since the
+            revealed words are a prefix of the same text at the same width. */}
+        <span className="absolute inset-0">
+          {tokens.slice(0, shown).join(" ")}
+          {!done && <span className="caret">▋</span>}
+        </span>
       </span>
     </Tag>
   );
