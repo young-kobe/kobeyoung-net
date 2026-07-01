@@ -18,6 +18,15 @@
 {$SITE_DOMAIN} {
 	encode gzip zstd
 
+	# Cloudflare Origin Certificate (15-yr). Cloudflare→origin TLS is served with this cert;
+	# set the zone's SSL/TLS mode to "Full (strict)". The cert+key are mounted read-only by
+	# docker-compose (deploy/cloudflare-origin.{pem,key} → /etc/caddy/origin.{pem,key}).
+	# This replaces Caddy's ACME so cert issuance never depends on public :80 reachability —
+	# which matters once the firewall locks ingress to Cloudflare only.
+	# HARDENING: to add Authenticated Origin Pulls later, wrap this in a block with a
+	# client_auth stanza (see the commented example below) instead of a bare directive.
+	tls /etc/caddy/origin.pem /etc/caddy/origin.key
+
 	# Authenticated Origin Pulls (Caddy 2.8+). Download Cloudflare's origin-pull CA to
 	# deploy/cloudflare-origin-pull-ca.pem, mount it into the caddy container, and uncomment:
 	# tls {

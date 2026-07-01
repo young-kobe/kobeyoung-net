@@ -22,6 +22,9 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Cloudflare Origin Certificate (git-ignored; created in the Cloudflare dashboard).
+      - ./cloudflare-origin.pem:/etc/caddy/origin.pem:ro
+      - ./cloudflare-origin.key:/etc/caddy/origin.key:ro
       - caddy_data:/data
       - caddy_config:/config
     environment:

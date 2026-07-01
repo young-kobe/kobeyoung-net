@@ -16,6 +16,11 @@ next-env.d.ts
 api/.env
 web/.env
 
+# Cloudflare origin cert + private key (live only on the box, never in git)
+deploy/cloudflare-origin.pem
+deploy/cloudflare-origin.key
+deploy/cloudflare-origin-pull-ca.pem
+
 # Build artifacts
 *.log
 /api/bin/
