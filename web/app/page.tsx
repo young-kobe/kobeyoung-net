@@ -1,32 +1,39 @@
 import Link from "next/link";
 import { site } from "@/lib/site";
-import { getProjects, type ProjectStatus } from "@/lib/content";
-import { CardLink, SectionLabel, StatusBadge, Tag } from "@/components/ui";
+import { getBatching, getFragmentation, getPrefixSharing } from "@/lib/bench";
+import { SectionLabel, CornerTicks } from "@/components/ui";
 import { HeroHeadline } from "@/components/Hero";
 import { Reveal } from "@/components/Reveal";
 
-// Roadmap items — edit this list as plans change. This is a real ordered sequence,
-// so the steps are numbered. `status` reuses the StatusBadge styles.
-const roadmap: { title: string; status: ProjectStatus; detail: string }[] = [
-  {
-    title: "Finish the inference engine",
-    status: "in-progress",
-    detail: "A minimal engine to self-host open-source LLMs from scratch.",
-  },
-  {
-    title: "Wire the engine into the site",
-    status: "planned",
-    detail: "Swap the model behind KobeLLM over to my own engine.",
-  },
-  {
-    title: "Build a harness on top",
-    status: "planned",
-    detail: "Evaluation and tooling layered on the inference engine.",
-  },
+/**
+ * Build pipeline for the inference engine — a real, ordered system state, not a to-do list.
+ * `state`: ok = shipped & tested, run = in progress, wait = queued. Edit as phases land.
+ */
+const pipeline: { state: "ok" | "run" | "wait"; stage: string; detail: string }[] = [
+  { state: "ok", stage: "paged kv-cache allocator", detail: "arena + LIFO free list + per-block refcounts, tested" },
+  { state: "ok", stage: "prefix sharing + copy-on-write", detail: "shared system prompts refcounted once" },
+  { state: "ok", stage: "continuous-batching scheduler", detail: "reap → admit → decode with LIFO preemption" },
+  { state: "ok", stage: "mechanism benchmarks", detail: "batching, fragmentation, saturation — measured" },
+  { state: "run", stage: "compute path", detail: "CPU reference ops + a paged-attention CUDA kernel" },
+  { state: "wait", stage: "end-to-end model", detail: "safetensors loader → run a real 0.5B model" },
+  { state: "wait", stage: "self-host KobeLLM", detail: "swap the live demo over to my own engine" },
 ];
 
+const STATE_STYLE: Record<string, { tag: string; dot: string; ink: string }> = {
+  ok: { tag: "ok", dot: "bg-accent", ink: "text-accent" },
+  run: { tag: "run", dot: "bg-accent2 animate-pulse", ink: "text-accent2" },
+  wait: { tag: "wait", dot: "bg-transparent border border-muted", ink: "text-muted" },
+};
+
 export default function HomePage() {
-  const projects = getProjects().slice(0, 3);
+  const batching = getBatching();
+  const frag = getFragmentation();
+  const prefix = getPrefixSharing();
+  const stats = [
+    { value: `${batching.speedup.toFixed(1)}×`, label: "throughput" },
+    { value: `${Math.round(frag.savingsPct)}%`, label: "less KV memory" },
+    { value: `${Math.round((1 - prefix.onMib / prefix.offMib) * 100)}%`, label: "less when shared" },
+  ];
 
   return (
     <div className="space-y-20 sm:space-y-28">
@@ -38,16 +45,12 @@ export default function HomePage() {
           className="mt-6 max-w-2xl text-lg leading-relaxed text-muted animate-rise"
           style={{ animationDelay: "120ms" }}
         >
-          Building the behind-the-scenes systems that move data and
-          run AI models, the parts people never see but use every day. Concretely: real-time
-          data pipelines, RAG/LLM serving, and distributed backends on AWS and Azure. Former
-          Navy avionics technician and residential electrician, now working my way down the
-          stack toward systems and inference.
+          Building the behind-the-scenes systems that move data and run AI models — the parts people
+          never see but use every day. Concretely: real-time data pipelines, RAG/LLM serving, and
+          distributed backends on AWS and Azure. Former Navy avionics technician and residential
+          electrician, now working my way down the stack toward systems and inference.
         </p>
-        <div
-          className="mt-8 flex flex-wrap gap-3 animate-rise"
-          style={{ animationDelay: "220ms" }}
-        >
+        <div className="mt-8 flex flex-wrap gap-3 animate-rise" style={{ animationDelay: "220ms" }}>
           <Link
             href="/projects"
             className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
@@ -67,66 +70,69 @@ export default function HomePage() {
             Resume
           </a>
         </div>
-        <p
-          className="mt-8 font-mono text-xs text-muted animate-rise"
-          style={{ animationDelay: "320ms" }}
-        >
+        <p className="mt-8 font-mono text-xs text-muted animate-rise" style={{ animationDelay: "320ms" }}>
           {"// self-hosting the whole stack on one box · owner of multiple cats"}
         </p>
       </section>
 
-      {/* Featured projects */}
+      {/* Engine signature — the live proof, measured */}
       <Reveal>
-        <section>
-          <SectionLabel>~/projects</SectionLabel>
-          <div className="mt-5 flex items-baseline justify-between">
-            <h2 className="font-display text-2xl font-bold tracking-tight">Featured projects</h2>
-            <Link href="/projects" className="text-sm text-accent transition-colors hover:underline">
-              All projects →
-            </Link>
-          </div>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {projects.map((p) => (
-              <CardLink key={p.slug} href={`/projects/${p.slug}`} title={p.frontmatter.title}>
-                <div className="mt-2">
-                  <StatusBadge status={p.frontmatter.status} />
+        <Link href="/projects/mini-inference-engine" className="group relative block border border-border bg-surface/70 p-6 transition-colors hover:border-accent/60">
+          <CornerTicks className="opacity-40 transition-opacity group-hover:opacity-100" />
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex gap-8">
+              {stats.map((s) => (
+                <div key={s.label}>
+                  <div className="font-mono text-2xl font-bold tabular-nums tracking-tight text-accent sm:text-3xl">
+                    {s.value}
+                  </div>
+                  <div className="mt-1.5 h-px w-8 bg-accent/40" />
+                  <div className="mt-1.5 text-xs text-muted">{s.label}</div>
                 </div>
-                <p className="mt-3 text-sm leading-relaxed text-muted">{p.frontmatter.summary}</p>
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {p.frontmatter.tags.map((t) => (
-                    <Tag key={t}>{t}</Tag>
-                  ))}
-                </div>
-              </CardLink>
-            ))}
+              ))}
+            </div>
+            <div className="sm:max-w-[16rem] sm:text-right">
+              <span className="eyebrow">mini inference engine</span>
+              <span className="mt-1 block text-sm text-muted transition-colors group-hover:text-accent">
+                A from-scratch LLM serving core in C++/CUDA — paged KV cache + continuous batching,
+                benchmarked honestly →
+              </span>
+            </div>
           </div>
-        </section>
+        </Link>
       </Reveal>
 
-      {/* Roadmap — a real ordered sequence, hence the numbering */}
+      {/* Build pipeline — real system state, terminal-styled */}
       <Reveal>
         <section>
-          <SectionLabel>~/roadmap</SectionLabel>
-          <h2 className="mt-5 font-display text-2xl font-bold tracking-tight">What I'm building next</h2>
+          <SectionLabel>~/status</SectionLabel>
+          <div className="mt-5 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-display text-2xl font-bold tracking-tight">What I&apos;m building next</h2>
+            <code className="font-mono text-xs text-muted">status: mini-inference-engine</code>
+          </div>
+
           <ol className="mt-8">
-            {roadmap.map((item, i) => (
-              <li key={item.title} className="flex gap-5">
-                {/* Timeline rail: mono step number + connector that grows to fill the row */}
-                <div className="flex flex-col items-center">
-                  <span className="font-mono text-xs font-medium tabular-nums text-accent">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  {i < roadmap.length - 1 && <span className="mt-2 w-px flex-1 bg-border" />}
-                </div>
-                <div className="pb-10">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h3 className="font-medium">{item.title}</h3>
-                    <StatusBadge status={item.status} />
+            {pipeline.map((p, i) => {
+              const s = STATE_STYLE[p.state];
+              return (
+                <li key={p.stage} className="flex gap-4">
+                  {/* pipeline rail */}
+                  <div className="flex flex-col items-center pt-1.5">
+                    <span className={`h-2.5 w-2.5 rounded-full ${s.dot}`} />
+                    {i < pipeline.length - 1 && (
+                      <span className={`mt-1 w-px flex-1 ${p.state === "ok" ? "bg-accent/40" : "bg-border"}`} />
+                    )}
                   </div>
-                  <p className="mt-1.5 text-sm text-muted">{item.detail}</p>
-                </div>
-              </li>
-            ))}
+                  <div className="pb-6">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <span className={`font-mono text-xs ${s.ink}`}>{`[${s.tag}]`}</span>
+                      <span className="font-mono text-sm">{p.stage}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-muted">{p.detail}</p>
+                  </div>
+                </li>
+              );
+            })}
           </ol>
         </section>
       </Reveal>

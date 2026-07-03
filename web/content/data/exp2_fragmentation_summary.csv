@@ -1,0 +1,3 @@
+view,paged_blocks,contiguous_blocks,paged_mib,contiguous_mib,paged_waste_pct,contiguous_waste_pct,savings_pct
+per_sequence_aggregate,3750,32768,703.125,6144,3.14833,88.9162,88.5559
+peak_concurrent,754,4096,141.375,768,,,81.5918

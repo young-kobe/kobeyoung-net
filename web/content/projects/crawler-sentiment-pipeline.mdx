@@ -27,6 +27,8 @@ outlive the thing I first built them for, which is why I'm writing them up on th
 The contract between them is a content-addressed store on disk and a SQLite database: the
 crawler writes, the pipeline reads, and neither needs to know the other's internals.
 
+<CrawlerFlow />
+
 ## A crawler that survives being killed
 
 The whole crawler is organized around a **frontier**: a SQLite table of URLs moving through a
@@ -72,7 +74,7 @@ page flows through one pipeline (robots check → rate-limited fetch → store �
 mark done), and any stage's failure routes to retryable backoff or permanent failure based on
 the error.
 
-## Store once, by content
+## Store once by content
 
 Raw fetched bytes are written to a content-addressed store: the SHA-256 of the content is the
 filename, sharded two levels deep to avoid blowing past filesystem inode limits. Identical
@@ -92,7 +94,7 @@ if _, err := os.Stat(path); err == nil {
 The hash becomes the join key downstream: every analyzed document traces back to the exact
 bytes it came from.
 
-## Sentiment, hybrid by design
+## Hybrid Sentiment analysis layer
 
 The analyzer never blindly trusts a model. It computes **deterministic signals** first
 (positive/negative lexicon hits, intensifiers, entity proximity), then decides whether to
@@ -140,7 +142,7 @@ change.
 
 ## Keeping the model honest
 
-The piece I'm most attached to is the human-in-the-loop review queue. Instead of asking people
+To do we use a human-in-the-loop review queue. Instead of asking people
 to label random samples, it surfaces the outputs the model was *least sure about*
 (lowest confidence first) because that's where review buys the most:
 

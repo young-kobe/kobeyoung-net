@@ -3,6 +3,15 @@
  * file — e.g. <Callout type="warn">…</Callout>, <BarChart …/>, <Metrics …/>.
  */
 import { CodeBlock } from "./CopyButton";
+import {
+  StatStrip,
+  BenchHeadline,
+  BenchBatching,
+  BenchFragmentation,
+  BenchPrefix,
+  BenchSaturation,
+} from "./charts";
+import { EngineArchitecture, CrawlerFlow } from "./diagrams";
 
 /** Map of tag/name → component passed to MDXRemote (local type; v6 dropped the export). */
 type MDXComponents = Record<string, React.ComponentType<any>>;
@@ -112,5 +121,14 @@ export const mdxComponents: MDXComponents = {
   Figure,
   BarChart,
   Metrics,
+  // Inline-SVG figures (see components/charts.tsx, diagrams.tsx) — server-rendered, CSP-clean.
+  StatStrip,
+  BenchHeadline,
+  BenchBatching,
+  BenchFragmentation,
+  BenchPrefix,
+  BenchSaturation,
+  EngineArchitecture,
+  CrawlerFlow,
   pre: (props) => <CodeBlock>{props.children}</CodeBlock>,
 };
