@@ -17,7 +17,7 @@ export const site = {
   },
   nav: [
     { href: "/projects", label: "Projects" },
-    // { href: "/blog", label: "Blog" },
+    { href: "/blog", label: "Blog" },
     { href: "/chat", label: "KobeLLM" },
     { href: "/about", label: "About Me" },
     { href: "/contact", label: "Contact" },

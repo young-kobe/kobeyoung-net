@@ -122,6 +122,14 @@ body::before {
   .caret { animation: none; }
 }
 
+/* Scope charts animate in via JS (IntersectionObserver). With no JS the reveal never fires,
+   so force the traces/fills to their final, fully-visible state. */
+@media (scripting: none) {
+  .scope-trace { stroke-dashoffset: 0 !important; }
+  .scope-area, .scope-cell { opacity: 1 !important; }
+  .scope-bar { transform: none !important; }
+}
+
 /* Visible focus ring for keyboard users (WCAG AA). */
 :focus-visible {
   outline: 2px solid rgb(var(--accent));

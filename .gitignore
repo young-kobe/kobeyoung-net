@@ -33,3 +33,4 @@ deploy/cloudflare-origin-pull-ca.pem
 .idea/
 .vscode/
 SECURITY-AUDIT.md
+idea.md

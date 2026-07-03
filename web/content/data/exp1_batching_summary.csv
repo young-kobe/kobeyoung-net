@@ -1,0 +1,3 @@
+mode,makespan_rounds,total_tokens,throughput_tok_per_round,mean_batch_occupancy,completed
+continuous,1296,31637,24.4113,24.4113,256
+static,3343,31637,9.46366,9.46366,256
