@@ -280,6 +280,7 @@ export function ScopeBars({
           <div className="relative h-6 flex-1 overflow-hidden bg-bg">
             <div
               className="scope-bar h-6"
+              title={`${r.label}: ${r.value} ${unit}`}
               style={{
                 width: `${(r.value / max) * 100}%`,
                 background: r.color,
@@ -287,9 +288,7 @@ export function ScopeBars({
                 transform: shown ? "scaleX(1)" : "scaleX(0)",
                 transition: reduce ? "none" : `transform 900ms cubic-bezier(0.22,1,0.36,1) ${i * 120}ms`,
               }}
-            >
-              <title>{`${r.label}: ${r.value} ${unit}`}</title>
-            </div>
+            />
           </div>
           <span className="w-24 shrink-0 text-right font-mono tabular-nums">
             {r.value.toLocaleString()} {unit}
