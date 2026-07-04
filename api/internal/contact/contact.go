@@ -23,6 +23,7 @@ import (
 
 	"github.com/kobeyoung/kobeyoung-net/api/internal/config"
 	"github.com/kobeyoung/kobeyoung-net/api/internal/email"
+	"github.com/kobeyoung/kobeyoung-net/api/internal/metrics"
 	"github.com/kobeyoung/kobeyoung-net/api/internal/middleware"
 	"github.com/kobeyoung/kobeyoung-net/api/internal/ratelimit"
 	"github.com/kobeyoung/kobeyoung-net/api/internal/turnstile"
@@ -54,10 +55,11 @@ type Handler struct {
 	limiter   *ratelimit.Limiter
 	mailer    *email.Client
 	turnstile *turnstile.Verifier
+	metrics   *metrics.Metrics
 }
 
-func NewHandler(cfg *config.Config, lim *ratelimit.Limiter, mailer *email.Client, ts *turnstile.Verifier) *Handler {
-	return &Handler{cfg: cfg, limiter: lim, mailer: mailer, turnstile: ts}
+func NewHandler(cfg *config.Config, lim *ratelimit.Limiter, mailer *email.Client, ts *turnstile.Verifier, m *metrics.Metrics) *Handler {
+	return &Handler{cfg: cfg, limiter: lim, mailer: mailer, turnstile: ts, metrics: m}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -70,6 +72,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Rate limit early — cheap, before parsing/verification work.
 	if !h.limiter.Allow(ip) {
+		h.metrics.RateLimitBlock()
 		writeJSON(w, http.StatusTooManyRequests, response{false, "Too many requests. Please try again later."})
 		return
 	}
@@ -86,6 +89,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// (2) Honeypot — a real user never fills this hidden field. Pretend success so
 	// bots get no signal, but send nothing.
 	if strings.TrimSpace(req.Company) != "" {
+		h.metrics.HoneypotHit()
 		log.Printf("contact: honeypot triggered ip=%s", ip)
 		writeJSON(w, http.StatusOK, response{true, "Thanks — your message has been sent."})
 		return
@@ -101,6 +105,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// (1) Turnstile (no-op when disabled).
 	if err := h.turnstile.Verify(r.Context(), req.TurnstileToken, ip); err != nil {
+		h.metrics.TurnstileFail()
 		writeJSON(w, http.StatusBadRequest, response{false, "Verification failed. Please retry."})
 		return
 	}
@@ -129,6 +134,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.metrics.ContactSent()
 	writeJSON(w, http.StatusOK, response{true, "Thanks — your message has been sent."})
 }
 

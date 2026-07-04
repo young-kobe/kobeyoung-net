@@ -3,17 +3,21 @@
 import { useEffect, useRef, useState } from "react";
 import { apiUrl } from "@/lib/site";
 import { Turnstile, turnstileEnabled } from "./Turnstile";
-import type { ChatMessage, ChatStreamEvent, HealthResponse } from "@contract/api";
+import type { ChatMessage, ChatStreamEvent, HealthResponse, StreamStats } from "@contract/api";
 
 type Health = "checking" | "online" | "offline";
 
 export function DemoChat() {
   const [health, setHealth] = useState<Health>("checking");
   const [modelName, setModelName] = useState<string>("");
+  const [modelParams, setModelParams] = useState<string>("");
+  const [modelQuant, setModelQuant] = useState<string>("");
   const [started, setStarted] = useState(false); // click-to-start so bots don't auto-hammer
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const [liveTokens, setLiveTokens] = useState(0); // token count for the in-flight response
+  const [lastStats, setLastStats] = useState<StreamStats | null>(null); // metrics for the last response
   const [token, setToken] = useState("");
   const [tsReset, setTsReset] = useState(0); // bumped after each send to re-challenge Turnstile
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -26,6 +30,8 @@ export function DemoChat() {
         if (cancelled) return;
         setHealth(h.model === "online" ? "online" : "offline");
         if (h.modelName) setModelName(h.modelName);
+        if (h.modelParams) setModelParams(h.modelParams);
+        if (h.modelQuant) setModelQuant(h.modelQuant);
       })
       .catch(() => !cancelled && setHealth("offline"));
     return () => {
@@ -46,6 +52,8 @@ export function DemoChat() {
     setMessages([...next, { role: "assistant", content: "" }]);
     setInput("");
     setStreaming(true);
+    setLiveTokens(0);
+    setLastStats(null);
 
     try {
       const res = await fetch(`${apiUrl}/chat`, {
@@ -82,8 +90,11 @@ export function DemoChat() {
           }
           if (ev.type === "token") {
             appendToLast(setMessages, ev.token);
+            setLiveTokens((n) => n + 1);
           } else if (ev.type === "error") {
             appendToLast(setMessages, `\n\n⚠️ ${ev.message}`);
+          } else if (ev.type === "done" && ev.stats) {
+            setLastStats(ev.stats);
           }
         }
       }
@@ -123,12 +134,19 @@ export function DemoChat() {
       </div>
 
       {!started ? (
-        <div className="p-8 text-center">
+        <div className="p-6 text-center">
           <p className="text-muted">A live chat with a self-hosted open-source LLM.</p>
+          <dl className="mx-auto mt-5 max-w-xs space-y-1.5 text-sm">
+            <SpecRow label="Model" value={modelName || "—"} />
+            {modelParams && <SpecRow label="Parameters" value={modelParams} />}
+            {modelQuant && <SpecRow label="Quantization" value={modelQuant} />}
+            <SpecRow label="Runtime" value="llama.cpp · CPU" />
+            <SpecRow label="Hosting" value="1 box · no external API" />
+          </dl>
           <button
             onClick={() => setStarted(true)}
             disabled={health !== "online"}
-            className="mt-4 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60"
+            className="mt-6 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60"
           >
             Start chat
           </button>
@@ -151,6 +169,13 @@ export function DemoChat() {
               </div>
             ))}
           </div>
+          {(streaming || lastStats) && (
+            <div className="border-t border-border px-4 py-1.5 text-center font-mono text-xs text-muted">
+              {lastStats && !streaming
+                ? `${lastStats.tokens} tok · ${lastStats.ttftMs} ms to first token · ${lastStats.tokPerSec.toFixed(1)} tok/s`
+                : `generating… ${liveTokens} tok`}
+            </div>
+          )}
           <div className="border-t border-border p-3">
             {turnstileEnabled && (
               <div className="mb-2 flex justify-center">
@@ -177,6 +202,15 @@ export function DemoChat() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function SpecRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4">
+      <dt className="text-muted">{label}</dt>
+      <dd className="font-mono">{value}</dd>
     </div>
   );
 }

@@ -6,6 +6,12 @@ status: shipped
 tags: [Next.js, Go, MDX, Self-hosted, Security]
 
 updates:
+  - date: 2026-07-04
+    note: Added a live dashboard — the self-hosted stack reporting on itself. The Go backend exposes GET /stats (KobeLLM throughput and time-to-first-token measured per response, host CPU/memory/load from /proc, and "since last deploy" traffic + abuse-deflected counters), which the home page polls and renders as hand-built tiles. Still zero third-party deps and no analytics tracker.
+  - date: 2026-07-03
+    note: Front-end polish pass — redesigned the home, projects, and about pages, added a blog index, and built every chart, stat, and diagram by hand so the pages ship zero runtime JS for their visuals.
+  - date: 2026-07-01
+    note: Shipped the CI/CD pipeline. GitHub Actions gates every PR on gofmt/vet/build plus `next build` and `npm audit`, then builds and pushes the web + api images to GHCR on merge to main. Deploy stays manual and pull-based, so nothing from GitHub can reach into the box.
   - date: 2026-06-30
     note: First writeups published; retired the placeholder content.
   - date: 2026-06-29
@@ -130,6 +136,88 @@ The whole stack runs on a single Hetzner box behind Caddy and Cloudflare, delibe
 a managed platform. Caddy terminates TLS and reverse-proxies; Cloudflare fronts it; the Go
 binary and the Next.js standalone server run as containers. It's a small machine doing an
 honest amount of work, and I own every layer of it.
+
+## CI that builds, deploy that pulls
+
+Every push and pull request runs the same gate in GitHub Actions: `gofmt`, `go build`, and
+`go vet` on the API, then `npm ci`, `next build` (which runs ESLint), and `npm audit` on the
+front end. A formatting slip or a high-severity advisory fails the check before it can merge.
+
+Only after that passes, and only on a push to `main`, does a second job build the `web` and
+`api` container images and push them to GHCR, tagged with both `latest` and the commit SHA:
+
+```yaml
+build-push:
+  needs: ci
+  if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  permissions:
+    contents: read
+    packages: write # push to GHCR, nothing more
+```
+
+The deliberate choice is what happens next: **nothing.** The deploy is manual and pull-based.
+Nothing from GitHub ever reaches into the box, so there's no inbound deploy path to secure and
+port 22 stays firewalled to my own IP. When I want the new build live, I SSH in and run one
+aliased command:
+
+```bash
+git pull --ff-only && bash deploy/deploy.sh
+```
+
+The script only pulls my own two images and restarts them; the third-party base images
+(Caddy, llama.cpp) stay pinned unless they're missing, so a deploy can't silently drag in an
+upstream update.
+
+```bash
+docker compose pull web api
+docker compose up -d --remove-orphans
+```
+
+<Callout type="note">
+  A CI job that can't SSH into production is a feature, not a limitation. The pipeline's write
+  access ends at a container registry; promoting an image to the live box is always a human,
+  gated step.
+</Callout>
+
+## Charts with no chart library
+
+Every figure on the site — the benchmark charts, the architecture diagrams, the stat blocks —
+is hand-authored inline SVG, server-rendered, reading its data from CSVs at build time. There's
+no charting dependency and effectively no runtime JavaScript behind them; colors come from CSS
+variables so they follow the theme, and it all stays clean under the same strict nonce CSP as
+everything else. It's more work than importing a library, but it keeps the supply-chain surface
+at zero and means I understand every pixel.
+
+## The site reports on itself
+
+Since I own every layer, the home page has a live dashboard that reads the stack directly. A
+`GET /stats` endpoint on the Go backend returns one JSON snapshot; the page polls it and renders
+the numbers as the same hand-built tiles as everything else. Three things it surfaces:
+
+- **KobeLLM.** The SSE proxy already sees every token, so it times each response and
+  reports real throughput and time-to-first-token — the actual speed of a 1.5B model on CPU (very cool :) )
+- **The box itself.** CPU, memory, and load come straight from the machine's `/proc`, sampled
+  on a two-second tick. Because the API runs in a container, these are deliberately *host*-level
+  figures — so the number reflects the whole box, including the separate llama.cpp container
+  doing the actual inference.
+- **Abuse deflected.** The honeypot catches, rate-limit blocks, and Turnstile failures are
+  counted right where each defense fires, which turns the otherwise-invisible controls from the
+  section above into a number you can watch move.
+
+```go
+// Emitted on the terminating SSE event — the proxy is the only thing that can measure this.
+type streamStats struct {
+	Tokens    int     `json:"tokens"`
+	TTFTMs    int64   `json:"ttftMs"`
+	TokPerSec float64 `json:"tokPerSec"`
+}
+```
+
+<Callout type="note">
+  Every counter is in-memory and resets on deploy — the dashboard labels it "since last deploy"
+  rather than pretending to be a database. And there's still no analytics tracker or third-party
+  beacon anywhere; the site measures itself, which is the only kind of telemetry I trust here.
+</Callout>
 
 ## What's next
 

@@ -86,6 +86,18 @@ func (l *Limiter) Allow(ip string) bool {
 	return true
 }
 
+// GlobalSnapshot returns the current global daily count and its cap, without consuming a
+// slot — for the dashboard's "responses today" gauge. A count past the window's reset reads
+// as 0 (the next Allow would roll it over).
+func (l *Limiter) GlobalSnapshot() (count, max int) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.now().After(l.global.reset) {
+		return 0, l.maxGlobal
+	}
+	return l.global.count, l.maxGlobal
+}
+
 // checkAndReserve resets the window if expired and reports whether there's headroom.
 // It does NOT increment (so a later gate failing doesn't waste a slot).
 func checkAndReserve(w *window, now time.Time, dur time.Duration, max int) bool {

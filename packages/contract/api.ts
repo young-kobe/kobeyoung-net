@@ -55,6 +55,20 @@ export interface ChatRequest {
 }
 
 /**
+ * Generation metrics for one response, measured server-side by the proxy and delivered
+ * on the terminating `done` event. Lets the UI surface how the self-hosted model actually
+ * performed (time-to-first-token, decode throughput) rather than hiding it.
+ */
+export interface StreamStats {
+  /** Completion tokens streamed (one per upstream delta). */
+  tokens: number;
+  /** Time to first token in ms — model queue + prefill, measured from the upstream request. */
+  ttftMs: number;
+  /** Decode throughput in tokens/sec (tokens after the first, over the decode window). */
+  tokPerSec: number;
+}
+
+/**
  * The /chat endpoint responds with `text/event-stream`.
  * Each SSE `data:` line carries one JSON-encoded `ChatStreamEvent`.
  * The stream terminates with a literal `data: [DONE]` line (OpenAI-style).
@@ -62,7 +76,7 @@ export interface ChatRequest {
 export type ChatStreamEvent =
   | { type: "token"; token: string }
   | { type: "error"; message: string }
-  | { type: "done" };
+  | { type: "done"; stats?: StreamStats };
 
 // ---------------------------------------------------------------------------
 // GET /health
@@ -75,4 +89,53 @@ export interface HealthResponse {
   model: "online" | "offline";
   /** Model display name, when known. */
   modelName?: string;
+  /** Parameter count, e.g. "1.5B" — for the demo's model card. Present only when online. */
+  modelParams?: string;
+  /** Quantization, e.g. "Q4_K_M" — for the demo's model card. Present only when online. */
+  modelQuant?: string;
+}
+
+// ---------------------------------------------------------------------------
+// GET /stats  (live dashboard snapshot)
+// ---------------------------------------------------------------------------
+
+/**
+ * A point-in-time snapshot of the self-hosted stack, polled by the home-page dashboard.
+ * All counters are in-memory and reset on deploy ("since last deploy"); host figures come
+ * from the box's /proc. Every field is public by design — the dashboard's whole purpose is
+ * to show the self-hosted stack working. No secrets appear here.
+ */
+export interface StatsResponse {
+  model: {
+    online: boolean;
+    name: string;
+    params: string;
+    quant: string;
+  };
+  generation: {
+    /** Most recent response's decode throughput (tokens/sec); 0 before the first response. */
+    lastTokPerSec: number;
+    /** Most recent response's time-to-first-token (ms). */
+    lastTtftMs: number;
+    totalResponses: number;
+    totalTokens: number;
+    /** Global demo responses used against today's budget, and the cap. */
+    responsesToday: number;
+    dailyCap: number;
+  };
+  host: {
+    cpuPct: number;
+    memUsedPct: number;
+    load1: number;
+    cores: number;
+    uptimeSec: number;
+  };
+  site: {
+    /** API process uptime in seconds. */
+    uptimeSec: number;
+    requests: { total: number; chat: number; contact: number; health: number };
+    /** Abuse deflected, counted where each defense fires. */
+    abuse: { honeypot: number; rateLimited: number; turnstileFailed: number };
+    contactSent: number;
+  };
 }

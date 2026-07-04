@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/kobeyoung/kobeyoung-net/api/internal/config"
+	"github.com/kobeyoung/kobeyoung-net/api/internal/metrics"
 	"github.com/kobeyoung/kobeyoung-net/api/internal/middleware"
 	"github.com/kobeyoung/kobeyoung-net/api/internal/ratelimit"
 	"github.com/kobeyoung/kobeyoung-net/api/internal/turnstile"
@@ -44,14 +45,16 @@ type Handler struct {
 	cfg       *config.Config
 	limiter   *ratelimit.Limiter
 	turnstile *turnstile.Verifier
+	metrics   *metrics.Metrics
 	client    *http.Client
 }
 
-func NewHandler(cfg *config.Config, lim *ratelimit.Limiter, ts *turnstile.Verifier) *Handler {
+func NewHandler(cfg *config.Config, lim *ratelimit.Limiter, ts *turnstile.Verifier, m *metrics.Metrics) *Handler {
 	return &Handler{
 		cfg:       cfg,
 		limiter:   lim,
 		turnstile: ts,
+		metrics:   m,
 		client:    &http.Client{Timeout: 120 * time.Second},
 	}
 }
@@ -68,6 +71,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ip := middleware.ClientIP(r, h.cfg.TrustProxyHeaders)
 	if !h.limiter.Allow(ip) {
+		h.metrics.RateLimitBlock()
 		writeSSEError(w, "Rate limit reached. Please slow down and try again shortly.", http.StatusTooManyRequests)
 		return
 	}
@@ -80,6 +84,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.turnstile.Verify(r.Context(), req.TurnstileToken, ip); err != nil {
+		h.metrics.TurnstileFail()
 		writeSSEError(w, "Verification failed. Please retry.", http.StatusForbidden)
 		return
 	}
@@ -168,6 +173,7 @@ func (h *Handler) stream(w http.ResponseWriter, r *http.Request, msgs []chatMess
 		upReq.Header.Set("Authorization", "Bearer "+h.cfg.ModelAPIKey)
 	}
 
+	reqStart := time.Now()
 	resp, err := h.client.Do(upReq)
 	if err != nil {
 		log.Printf("llm: upstream unreachable: %v", err)
@@ -182,7 +188,10 @@ func (h *Handler) stream(w http.ResponseWriter, r *http.Request, msgs []chatMess
 		return
 	}
 
-	// Relay upstream OpenAI-style SSE → our simplified ChatStreamEvent SSE.
+	// Relay upstream OpenAI-style SSE → our simplified ChatStreamEvent SSE, tracking timing so
+	// the terminating `done` event can report how the model actually performed.
+	var tokens int
+	var firstTokenAt time.Time
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
@@ -206,6 +215,10 @@ func (h *Handler) stream(w http.ResponseWriter, r *http.Request, msgs []chatMess
 		}
 		for _, c := range chunk.Choices {
 			if c.Delta.Content != "" {
+				if tokens == 0 {
+					firstTokenAt = time.Now()
+				}
+				tokens++
 				writeSSEEvent(w, flusher, map[string]string{"type": "token", "token": c.Delta.Content})
 			}
 		}
@@ -221,10 +234,45 @@ func (h *Handler) stream(w http.ResponseWriter, r *http.Request, msgs []chatMess
 		log.Printf("llm: stream read error: %v", err)
 	}
 
-	writeSSEEvent(w, flusher, map[string]string{"type": "done"})
+	stats := streamStatsFor(tokens, reqStart, firstTokenAt)
+	if stats != nil {
+		h.metrics.RecordGeneration(stats.Tokens, stats.TTFTMs, stats.TokPerSec)
+	}
+	writeSSEDone(w, flusher, stats)
+}
+
+type streamStats struct {
+	Tokens    int     `json:"tokens"`
+	TTFTMs    int64   `json:"ttftMs"`
+	TokPerSec float64 `json:"tokPerSec"`
+}
+
+// streamStatsFor computes generation metrics for one response, or nil when nothing streamed
+// (offline/empty). TTFT is the wait until the first token; throughput is measured over the
+// decode window (tokens after the first), which is the honest "generation speed" figure.
+func streamStatsFor(tokens int, reqStart, firstTokenAt time.Time) *streamStats {
+	if tokens == 0 || firstTokenAt.IsZero() {
+		return nil
+	}
+	s := &streamStats{Tokens: tokens, TTFTMs: firstTokenAt.Sub(reqStart).Milliseconds()}
+	if decode := time.Since(firstTokenAt).Seconds(); decode > 0 && tokens > 1 {
+		s.TokPerSec = float64(tokens-1) / decode
+	}
+	return s
 }
 
 func writeSSEEvent(w http.ResponseWriter, f http.Flusher, ev map[string]string) {
+	b, _ := json.Marshal(ev)
+	fmt.Fprintf(w, "data: %s\n\n", b)
+	f.Flush()
+}
+
+// writeSSEDone emits the terminating event, attaching generation stats when available.
+func writeSSEDone(w http.ResponseWriter, f http.Flusher, stats *streamStats) {
+	ev := map[string]any{"type": "done"}
+	if stats != nil {
+		ev["stats"] = stats
+	}
 	b, _ := json.Marshal(ev)
 	fmt.Fprintf(w, "data: %s\n\n", b)
 	f.Flush()

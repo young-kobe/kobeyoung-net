@@ -7,6 +7,8 @@ import (
 	"net"
 	"net/http"
 	"strings"
+
+	"github.com/kobeyoung/kobeyoung-net/api/internal/metrics"
 )
 
 // Chain applies middlewares in order (outermost first).
@@ -15,6 +17,22 @@ func Chain(h http.Handler, mws ...func(http.Handler) http.Handler) http.Handler 
 		h = mws[i](h)
 	}
 	return h
+}
+
+// CountRequests tallies each request by endpoint for the /stats dashboard. It counts only
+// the real user endpoints (chat/contact/health); /stats itself is intentionally excluded so
+// polling it doesn't inflate the totals. This middleware sits before CORS in the chain, so it
+// skips OPTIONS (the browser's automatic CORS preflight to /chat and /contact) and HEAD —
+// otherwise every real POST would be double-counted by its preceding preflight.
+func CountRequests(m *metrics.Metrics) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodOptions && r.Method != http.MethodHead {
+				m.CountRequest(strings.TrimPrefix(r.URL.Path, "/"))
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // CORS allows only the configured origins. The browser only ever talks to this

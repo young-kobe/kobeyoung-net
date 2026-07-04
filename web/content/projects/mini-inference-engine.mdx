@@ -64,7 +64,7 @@ out-of-memory is a sentinel (`kInvalidBlock`), not an exception. Reference count
 `vector<int>` rather than `shared_ptr`, because GPU blocks are integer IDs, not host pointers.
 
 <Callout type="note">
-  The whole correctness argument for the allocator is one invariant: a block returns to the
+  The correctness argument for the allocator is one invariant: a block returns to the
   free list **only** when its refcount hits zero via `decref`. That's what makes shared blocks
   safe to copy-on-write.
 </Callout>
@@ -142,7 +142,7 @@ from `bench/bench.cpp`.
 <BenchHeadline />
 
 <Callout type="warn">
-  **Read this first.** The compute path isn't built yet, so there is **no wall-clock tokens/sec**
+  The compute path isn't built yet, so there is **no wall-clock tokens/sec**
   number here. Every figure below is a *memory* or *scheduling* result, measured as a relative
   comparison against a naive baseline — which is exactly what the PagedAttention and continuous-
   batching papers lead with. Wall-clock throughput lands with the forward pass.

@@ -65,6 +65,9 @@ services:
       # reach the model by service name, name it for display, and lock CORS to the site origin.
       MODEL_BASE_URL: ${MODEL_BASE_URL:-http://model:9090}
       MODEL_NAME: ${MODEL_NAME:-qwen2.5-1.5b}
+      # Display-only, for the demo's model card (keep in sync with the model image below).
+      MODEL_PARAMS: ${MODEL_PARAMS:-1.5B}
+      MODEL_QUANT: ${MODEL_QUANT:-Q4_K_M}
       ALLOWED_ORIGINS: ${NEXT_PUBLIC_SITE_URL:-http://localhost}
       # Behind Caddy the real client IP arrives in CF-Connecting-IP / X-Forwarded-For, so
       # per-IP rate limiting needs this on. PRECONDITION: ingress MUST be locked to

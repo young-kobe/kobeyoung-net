@@ -76,10 +76,13 @@ jobs:
             context: .
             dockerfile: web/Dockerfile
             # NEXT_PUBLIC_* are public (inlined into the client bundle) — safe to bake here.
+            # BUILD_SHA/TIME feed the live dashboard's "deployed" tile.
             build_args: |
               NEXT_PUBLIC_SITE_URL=https://kobeyoung.net
               NEXT_PUBLIC_API_URL=https://kobeyoung.net/api
               NEXT_PUBLIC_TURNSTILE_SITE_KEY=0x4AAAAAADtrDymJT-GzGxwq
+              NEXT_PUBLIC_BUILD_SHA=${{ github.sha }}
+              NEXT_PUBLIC_BUILD_TIME=${{ github.event.head_commit.timestamp }}
           - image: api
             context: api
             dockerfile: api/Dockerfile
