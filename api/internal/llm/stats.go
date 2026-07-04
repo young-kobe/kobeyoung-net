@@ -79,8 +79,10 @@ func (h *StatsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	// Let Cloudflare cache the snapshot for a few seconds so visitor polling hits the CDN,
-	// not the origin. The dashboard stays "live enough" at this resolution.
-	w.Header().Set("Cache-Control", "public, max-age=3")
+	// Let Cloudflare absorb the dashboard's polling instead of the origin. Tuned to the client
+	// cadence (~4s poll): max-age >= the interval so consecutive polls can hit a fresh entry,
+	// and stale-while-revalidate covers the boundary — the CDN serves the slightly-stale
+	// snapshot instantly while refreshing in the background. A few seconds of lag is fine here.
+	w.Header().Set("Cache-Control", "public, max-age=5, stale-while-revalidate=10")
 	_ = json.NewEncoder(w).Encode(resp)
 }

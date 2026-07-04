@@ -6,6 +6,8 @@ status: shipped
 tags: [Next.js, Go, MDX, Self-hosted, Security]
 
 updates:
+  - date: 2026-07-04
+    note: Added a live dashboard — the self-hosted stack reporting on itself. The Go backend exposes GET /stats (KobeLLM throughput and time-to-first-token measured per response, host CPU/memory/load from /proc, and "since last deploy" traffic + abuse-deflected counters), which the home page polls and renders as hand-built tiles. Still zero third-party deps and no analytics tracker.
   - date: 2026-07-03
     note: Front-end polish pass — redesigned the home, projects, and about pages, added a blog index, and built every chart, stat, and diagram by hand so the pages ship zero runtime JS for their visuals.
   - date: 2026-07-01
@@ -185,6 +187,37 @@ no charting dependency and effectively no runtime JavaScript behind them; colors
 variables so they follow the theme, and it all stays clean under the same strict nonce CSP as
 everything else. It's more work than importing a library, but it keeps the supply-chain surface
 at zero and means I understand every pixel.
+
+## The site reports on itself
+
+Since I own every layer, the home page has a live dashboard that reads the stack directly. A
+`GET /stats` endpoint on the Go backend returns one JSON snapshot; the page polls it and renders
+the numbers as the same hand-built tiles as everything else. Three things it surfaces:
+
+- **KobeLLM.** The SSE proxy already sees every token, so it times each response and
+  reports real throughput and time-to-first-token — the actual speed of a 1.5B model on CPU (very cool :) )
+- **The box itself.** CPU, memory, and load come straight from the machine's `/proc`, sampled
+  on a two-second tick. Because the API runs in a container, these are deliberately *host*-level
+  figures — so the number reflects the whole box, including the separate llama.cpp container
+  doing the actual inference.
+- **Abuse deflected.** The honeypot catches, rate-limit blocks, and Turnstile failures are
+  counted right where each defense fires, which turns the otherwise-invisible controls from the
+  section above into a number you can watch move.
+
+```go
+// Emitted on the terminating SSE event — the proxy is the only thing that can measure this.
+type streamStats struct {
+	Tokens    int     `json:"tokens"`
+	TTFTMs    int64   `json:"ttftMs"`
+	TokPerSec float64 `json:"tokPerSec"`
+}
+```
+
+<Callout type="note">
+  Every counter is in-memory and resets on deploy — the dashboard labels it "since last deploy"
+  rather than pretending to be a database. And there's still no analytics tracker or third-party
+  beacon anywhere; the site measures itself, which is the only kind of telemetry I trust here.
+</Callout>
 
 ## What's next
 
