@@ -59,7 +59,7 @@ export function SiteDashboard({ build }: { build: BuildFacts }) {
     <section>
       <SectionLabel>~/live</SectionLabel>
       <div className="mt-5 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-display text-2xl font-bold tracking-tight">The stack, live</h2>
+        <h2 className="font-display text-2xl font-bold tracking-tight">kobeyoung.net live metrics dashboard</h2>
         <span className="flex items-center gap-1.5 font-mono text-xs text-muted">
           <span
             className={`h-2 w-2 rounded-full ${reachable ? "bg-accent animate-pulse" : "bg-muted/50"}`}
