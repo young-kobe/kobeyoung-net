@@ -38,6 +38,8 @@ type Config struct {
 	// LLM demo proxy
 	ModelBaseURL      string // upstream OpenAI-style inference engine (or the mock)
 	ModelName         string
+	ModelParams       string // display-only: parameter count, e.g. "1.5B" (for the demo model card)
+	ModelQuant        string // display-only: quantization, e.g. "Q4_K_M" (for the demo model card)
 	ModelAPIKey       string // optional bearer for the upstream model
 	DemoPerIPPerMin   int
 	DemoPerIPPerDay   int // per-IP daily cap so one client can't drain the global budget
@@ -76,6 +78,8 @@ func Load() (*Config, error) {
 
 		ModelBaseURL:      getenv("MODEL_BASE_URL", "http://localhost:9090"),
 		ModelName:         getenv("MODEL_NAME", "mock-model-1"),
+		ModelParams:       getenv("MODEL_PARAMS", "1.5B"),
+		ModelQuant:        getenv("MODEL_QUANT", "Q4_K_M"),
 		ModelAPIKey:       os.Getenv("MODEL_API_KEY"),
 		DemoPerIPPerMin:   getenvInt("DEMO_PER_IP_PER_MIN", 6),
 		DemoPerIPPerDay:   getenvInt("DEMO_PER_IP_PER_DAY", 100),

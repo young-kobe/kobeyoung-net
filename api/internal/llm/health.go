@@ -34,10 +34,18 @@ func (h *HealthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.cfg.DemoEnabled && h.modelOnline(r.Context()) {
 		resp["model"] = "online"
 		resp["modelName"] = h.cfg.ModelName
+		resp["modelParams"] = h.cfg.ModelParams
+		resp["modelQuant"] = h.cfg.ModelQuant
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// Online reports whether the demo is enabled and the upstream model is reachable, reusing
+// the same cached probe as /health so /stats polling doesn't add upstream traffic.
+func (h *HealthHandler) Online(ctx context.Context) bool {
+	return h.cfg.DemoEnabled && h.modelOnline(ctx)
 }
 
 // modelOnline returns the cached reachability result when fresh, otherwise probes the

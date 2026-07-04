@@ -1,9 +1,29 @@
 import Link from "next/link";
 import { site } from "@/lib/site";
 import { getBatching, getFragmentation, getPrefixSharing } from "@/lib/bench";
+import { getProjects, getPosts } from "@/lib/content";
 import { SectionLabel, CornerTicks } from "@/components/ui";
 import { HeroHeadline } from "@/components/Hero";
 import { Reveal } from "@/components/Reveal";
+import { SiteDashboard, type BuildFacts } from "@/components/SiteDashboard";
+
+/** Build-time facts for the live dashboard (deploy SHA + content totals). The SHA/time are
+ *  injected by CI; in dev they're absent, so we fall back to a "dev build" label. */
+function buildFacts(): BuildFacts {
+  const projects = getProjects();
+  const posts = getPosts();
+  const words = [...projects, ...posts].reduce(
+    (n, d) => n + d.body.trim().split(/\s+/).filter(Boolean).length,
+    0,
+  );
+  return {
+    sha: (process.env.NEXT_PUBLIC_BUILD_SHA || "").slice(0, 7) || "dev",
+    time: process.env.NEXT_PUBLIC_BUILD_TIME || "",
+    projects: projects.length,
+    posts: posts.length,
+    words,
+  };
+}
 
 /**
  * Build pipeline for the inference engine — a real, ordered system state, not a to-do list.
@@ -13,7 +33,7 @@ const pipeline: { state: "ok" | "run" | "wait"; stage: string; detail: string }[
   { state: "ok", stage: "paged kv-cache allocator", detail: "arena + LIFO free list + per-block refcounts, tested" },
   { state: "ok", stage: "prefix sharing + copy-on-write", detail: "shared system prompts refcounted once" },
   { state: "ok", stage: "continuous-batching scheduler", detail: "reap → admit → decode with LIFO preemption" },
-  { state: "ok", stage: "mechanism benchmarks", detail: "batching, fragmentation, saturation — measured" },
+  { state: "ok", stage: "mechanism benchmarks", detail: "batching, fragmentation, saturation" },
   { state: "run", stage: "compute path", detail: "CPU reference ops + a paged-attention CUDA kernel" },
   { state: "wait", stage: "end-to-end model", detail: "safetensors loader → run a real 0.5B model" },
   { state: "wait", stage: "self-host KobeLLM", detail: "swap the live demo over to my own engine" },
@@ -34,6 +54,7 @@ export default function HomePage() {
     { value: `${Math.round(frag.savingsPct)}%`, label: "less KV memory" },
     { value: `${Math.round((1 - prefix.onMib / prefix.offMib) * 100)}%`, label: "less when shared" },
   ];
+  const build = buildFacts();
 
   return (
     <div className="space-y-20 sm:space-y-28">
@@ -94,12 +115,18 @@ export default function HomePage() {
             <div className="sm:max-w-[16rem] sm:text-right">
               <span className="eyebrow">mini inference engine</span>
               <span className="mt-1 block text-sm text-muted transition-colors group-hover:text-accent">
-                A from-scratch LLM serving core in C++/CUDA — paged KV cache + continuous batching,
-                benchmarked honestly →
+                Handwritten from-scratch (I write the .cpp implementation logic) LLM serving core in C++/CUDA 
+                paged KV cache + continuous batching.
+                Benchmarked at current progress (no compute yet)
               </span>
             </div>
           </div>
         </Link>
+      </Reveal>
+
+      {/* Live dashboard — the self-hosted stack reporting on itself */}
+      <Reveal>
+        <SiteDashboard build={build} />
       </Reveal>
 
       {/* Build pipeline — real system state, terminal-styled */}

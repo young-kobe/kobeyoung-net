@@ -5,6 +5,7 @@
 //	POST /contact     — validated, spam-protected contact form → email via Resend
 //	POST /chat        — SSE streaming proxy to the self-hosted LLM (with abuse controls)
 //	GET  /health      — backend + upstream-model liveness for the demo online/offline UI
+//	GET  /stats       — live model + host + site counters for the dashboard
 //
 // All secrets are read from the environment (see api/.env.example). The browser only
 // ever talks to this service.
@@ -23,7 +24,9 @@ import (
 	"github.com/kobeyoung/kobeyoung-net/api/internal/config"
 	"github.com/kobeyoung/kobeyoung-net/api/internal/contact"
 	"github.com/kobeyoung/kobeyoung-net/api/internal/email"
+	"github.com/kobeyoung/kobeyoung-net/api/internal/hoststat"
 	"github.com/kobeyoung/kobeyoung-net/api/internal/llm"
+	"github.com/kobeyoung/kobeyoung-net/api/internal/metrics"
 	"github.com/kobeyoung/kobeyoung-net/api/internal/middleware"
 	"github.com/kobeyoung/kobeyoung-net/api/internal/ratelimit"
 	"github.com/kobeyoung/kobeyoung-net/api/internal/turnstile"
@@ -41,6 +44,11 @@ func main() {
 	stop := make(chan struct{})
 	defer close(stop)
 
+	// In-memory metrics ("since last deploy") + a host sampler, both feeding GET /stats.
+	metr := metrics.New(time.Now())
+	host := hoststat.New()
+	host.Start(2*time.Second, stop)
+
 	contactLimiter := ratelimit.New(cfg.ContactPerIPPerMin, cfg.ContactPerIPPerDay, cfg.ContactGlobalPerDay)
 	contactLimiter.StartJanitor(5*time.Minute, stop)
 
@@ -48,13 +56,17 @@ func main() {
 	demoLimiter := ratelimit.New(cfg.DemoPerIPPerMin, cfg.DemoPerIPPerDay, cfg.DemoGlobalPerDay)
 	demoLimiter.StartJanitor(5*time.Minute, stop)
 
+	healthHandler := llm.NewHealthHandler(cfg)
+
 	mux := http.NewServeMux()
-	mux.Handle("/contact", contact.NewHandler(cfg, contactLimiter, mailer, ts))
-	mux.Handle("/chat", llm.NewHandler(cfg, demoLimiter, ts))
-	mux.Handle("/health", llm.NewHealthHandler(cfg))
+	mux.Handle("/contact", contact.NewHandler(cfg, contactLimiter, mailer, ts, metr))
+	mux.Handle("/chat", llm.NewHandler(cfg, demoLimiter, ts, metr))
+	mux.Handle("/health", healthHandler)
+	mux.Handle("/stats", llm.NewStatsHandler(cfg, healthHandler, metr, host, demoLimiter))
 
 	handler := middleware.Chain(mux,
 		middleware.Recover,
+		middleware.CountRequests(metr),
 		middleware.SecurityHeaders,
 		middleware.CORS(cfg.AllowedOrigins),
 	)
