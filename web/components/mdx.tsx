@@ -11,7 +11,7 @@ import {
   BenchPrefix,
   BenchSaturation,
 } from "./charts";
-import { EngineArchitecture, CrawlerFlow } from "./diagrams";
+import { EngineArchitecture, CrawlerFlow, CivicLensPipeline } from "./diagrams";
 
 /** Map of tag/name → component passed to MDXRemote (local type; v6 dropped the export). */
 type MDXComponents = Record<string, React.ComponentType<any>>;
@@ -130,5 +130,6 @@ export const mdxComponents: MDXComponents = {
   BenchSaturation,
   EngineArchitecture,
   CrawlerFlow,
+  CivicLensPipeline,
   pre: (props) => <CodeBlock>{props.children}</CodeBlock>,
 };

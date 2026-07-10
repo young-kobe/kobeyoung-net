@@ -1,0 +1,94 @@
+---
+title: "Civic Lens — System Invariants"
+date: 2026-07-09
+summary: The non-negotiable correctness contract behind Civic Lens — traceability from every pixel back to raw bytes, evidence spans that must be verbatim quotes, confidence on every AI output, and proxy metrics that are never allowed to pose as ground truth.
+status: shipped
+tags: [Correctness, Design, Data Integrity, AI Safety]
+repo: https://github.com/young-kobe/civic-lens
+demo: https://civic-lens.info
+---
+
+Before [Civic Lens](https://civic-lens.info) had a dashboard, it had a contract:
+[`docs/INVARIANTS.md`](https://github.com/young-kobe/civic-lens/blob/main/docs/INVARIANTS.md),
+a checklist of properties every code change must preserve. For a system that publishes
+AI-derived claims about political discourse, "mostly correct" isn't a useful state — the
+failure mode isn't a bug report, it's a chart that quietly lies. This writeup covers the
+invariants layer by layer and why each one earns its place.
+
+## Ingestion: determinism and crash safety (Go)
+
+- **Deterministic canonicalization.** `Canonicalize(URL)` is a pure function, and the
+  canonical URL is the primary key everywhere. Same input, same output, forever — dedup
+  correctness rests on this.
+- **Frontier exclusivity.** Exactly one row per canonical URL; a URL is never both `QUEUED`
+  and `INFLIGHT`; on restart, `INFLIGHT` resets to `QUEUED` because the fetch provably never
+  completed.
+- **Politeness is strict.** Per-domain request rates never exceed the token bucket, and
+  redirect targets consume a token against the *target* domain — a redirect chain can't
+  multiply one host's request rate.
+- **Content immutability.** Raw files are content-addressed (`Hash(StoredBytes) ==
+  FilenameHash`) and never modified after write. Every parsed record carries the `raw_hash` of
+  its source blob.
+- **Parser failures don't crash** — they're logged and accounted, because one malformed page
+  shouldn't stop a crawl.
+
+One honest scoping note baked into the invariants: there is no per-attempt fetch ledger. A
+page's frontier row keeps the latest error and the retry count — that's the audit surface the
+system actually maintains, and the docs say so rather than implying more.
+
+## Analysis: no evidence, no claim (Python)
+
+The AI layer's invariants are the heart of the system:
+
+- **Traceability.** Every row in `docs` links to a `raw_hash`; every ETL row is stamped with
+  the `etl_version` that produced it, so outputs of different pipeline logic are never
+  silently mixed.
+- **Evidence.** AI classifications must cite specific verbatim spans from the source text.
+  For propaganda detection this is enforced mechanically: a technique whose evidence span is
+  under four words, or isn't a substring of the source text, is *dropped* — and if the LLM
+  returned techniques but none survived validation, the overall score is capped near zero.
+- **Uncertainty.** Every AI output carries a confidence score. No exceptions — the column is
+  effectively NOT NULL by contract.
+- **No hallucination.** A missing field returns `null` or an error, never a guess. The system
+  is allowed to say "I don't know"; it is not allowed to make something up.
+
+The "propaganda" invariant also fixes the definition problem head-on: a flag measures the
+presence of *measurable rhetorical techniques* (loaded language, name-calling, ad hominem,
+appeal to fear, whataboutism, doubt-casting) — rhetorical style, not truth, not intent, not
+whether a post is "propaganda" in the everyday sense.
+
+## Presentation: the UI is bound by the same contract
+
+Data honesty dies at the last mile if the frontend rounds it off, so the UI has invariants of
+its own:
+
+- **Confidence is displayed**, not just stored. Users see how sure the model was.
+- **Proxies are labeled as proxies.** "Reach" and "influence" style numbers must say what they
+  actually are (e.g. "Reddit score") unless verified data exists. GOP favorability is always
+  framed as sampled-content stance, never as polling.
+- **Every evidence doc links to its source.** Any surface showing an individual doc — a
+  flagged example, a classification sample, a narrative citation — must link back to the
+  original article, tweet, or Reddit post. The rule in the doc is blunt: *a doc row without a
+  link is a bug, not a layout choice*, because without the link a reader can't audit the claim
+  and end-to-end traceability is broken.
+
+## Why write these down at all
+
+Three things changed once the invariants were explicit:
+
+1. **Reviews got sharper.** "Does this preserve A3-exclusivity?" is answerable; "is this
+   okay?" is not. Several audit findings in the repo's history are phrased directly against
+   invariant IDs.
+2. **They forced honest scope.** Writing "no hallucination" and "proxies must be labeled"
+   made it obvious the project is a *sampled-discourse tracker with a narrative overlay*, not
+   a causal propagation engine — and the goal statement was narrowed to match.
+3. **They compound with the other layers.** The [schema](/writeups/civic-lens-database) turns
+   several invariants into CHECK constraints and foreign keys; the
+   [eval harness](/writeups/civic-lens-llm-evals) turns the evidence-span invariant into a
+   deterministic scoring metric. An invariant that's also a constraint and also a test is
+   three chances to catch the same regression.
+
+<Callout type="note">
+  The full checklist, including per-invariant status, lives in the repo:
+  <a href="https://github.com/young-kobe/civic-lens/blob/main/docs/INVARIANTS.md">docs/INVARIANTS.md</a>.
+</Callout>

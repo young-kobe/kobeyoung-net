@@ -103,6 +103,52 @@ export function EngineArchitecture() {
   );
 }
 
+/** Civic Lens end-to-end data flow: Go ingestion → SQLite/blob storage → Python analysis → FastAPI cache → React. */
+export function CivicLensPipeline() {
+  return (
+    <InstrumentFrame
+      title="Data flow: three fetchers, one database, five analysis engines, a snapshot cache"
+      badge="architecture"
+    >
+      <svg viewBox="0 0 720 430" className="h-auto w-full" role="img"
+        aria-label="Civic Lens architecture: Go web crawler, Reddit fetcher, and X fetcher write to a SQLite database in WAL mode and a content-addressed raw blob store. A Python ETL and analysis layer runs bot detection, sentiment and favorability, citation extraction, LLM claim extraction, and narrative clustering, writing results back to SQLite. A FastAPI server serves pre-computed JSON snapshots from a cache to the React dashboard.">
+        <ArrowDefs />
+        {/* ingestion row (Go) */}
+        <Node x={16} y={20} w={200} h={58} lines={["Web crawler (Go)", "SQLite frontier · polite · resumable"]} />
+        <Node x={264} y={20} w={180} h={58} lines={["Reddit fetcher (Go)", "posts + comments"]} />
+        <Node x={492} y={20} w={212} h={58} lines={["X fetcher (Go)", "posts · users · $ budget tracker"]} />
+
+        {/* storage row */}
+        <Node x={110} y={128} w={280} h={64} lines={["SQLite — civic_lens.db", "WAL mode · FKs on · 21 migrations"]} accent />
+        <Node x={446} y={128} w={220} h={64} lines={["Raw blob store", "data/raw/sha256 · immutable"]} />
+
+        {/* ingestion → storage */}
+        <line x1={116} y1={78} x2={200} y2={124} stroke={MUTED} strokeWidth={1.5} markerEnd="url(#ah)" />
+        <line x1={354} y1={78} x2={300} y2={124} stroke={MUTED} strokeWidth={1.5} markerEnd="url(#ah)" />
+        <line x1={598} y1={78} x2={400} y2={126} stroke={MUTED} strokeWidth={1.5} markerEnd="url(#ah)" />
+        <line x1={640} y1={78} x2={570} y2={124} stroke={BORDER} strokeWidth={1} markerEnd="url(#ah)" />
+        <text x={655} y={108} textAnchor="middle" className="font-mono" style={{ fill: MUTED, fontSize: "10px" }}>raw bytes</text>
+
+        {/* storage → analysis (and back) */}
+        <line x1={230} y1={192} x2={230} y2={238} stroke={MUTED} strokeWidth={1.5} markerEnd="url(#ah)" />
+        <line x1={290} y1={238} x2={290} y2={192} stroke={ACCENT} strokeWidth={1.5} markerEnd="url(#ah-accent)" />
+        <text x={352} y={222} textAnchor="middle" className="font-mono" style={{ fill: ACCENT, fontSize: "10px" }}>ai_outputs · narratives · citations</text>
+        <path d="M 556 192 L 556 214 L 480 214 L 480 238" fill="none" stroke={BORDER} strokeWidth={1} markerEnd="url(#ah)" />
+
+        {/* analysis band (Python) */}
+        <Node x={16} y={240} w={688} h={82}
+          lines={["Analysis pipeline (Python)", "ETL → bot detection → sentiment + favorability → citations → claims (LLM) → narratives", "every output: confidence score + verbatim evidence span + model & prompt version"]} />
+
+        {/* analysis → API/cache → UI */}
+        <line x1={200} y1={322} x2={200} y2={358} stroke={MUTED} strokeWidth={1.5} markerEnd="url(#ah)" />
+        <Node x={60} y={360} w={300} h={58} lines={["FastAPI + JSON cache", "pre-computed snapshots · admin-gated writes"]} />
+        <line x1={364} y1={389} x2={438} y2={389} stroke={MUTED} strokeWidth={1.5} markerEnd="url(#ah)" />
+        <Node x={442} y={360} w={230} h={58} lines={["React dashboard", "confidence shown · sources linked"]} />
+      </svg>
+    </InstrumentFrame>
+  );
+}
+
 /** The Crawler + Sentiment pipeline data flow, branching at the confidence gate. */
 export function CrawlerFlow() {
   return (

@@ -24,16 +24,30 @@ export function MobileMenu() {
       {open && (
         <div className="absolute left-0 right-0 top-full border-b border-border bg-bg/95 backdrop-blur">
           <div className="mx-auto flex max-w-5xl flex-col px-4 py-2">
-            {site.nav.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className="rounded-md px-2 py-3 font-mono text-sm text-muted transition-colors hover:bg-surface hover:text-fg"
-              >
-                {item.label}
-              </Link>
-            ))}
+            {site.nav.map((item) =>
+              item.external ? (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener"
+                  onClick={() => setOpen(false)}
+                  className="rounded-md px-2 py-3 font-mono text-sm text-accent transition-colors hover:bg-surface"
+                >
+                  {item.label}
+                  <span aria-hidden="true" className="ml-1">↗</span>
+                </a>
+              ) : (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className="rounded-md px-2 py-3 font-mono text-sm text-muted transition-colors hover:bg-surface hover:text-fg"
+                >
+                  {item.label}
+                </Link>
+              ),
+            )}
           </div>
         </div>
       )}

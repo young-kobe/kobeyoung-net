@@ -16,12 +16,13 @@ export const site = {
     resume: "/resume.pdf",
   },
   nav: [
-    { href: "/projects", label: "Projects" },
+    { href: "/writeups", label: "Writeups" },
+    { href: "https://civic-lens.info", label: "Civic Lens", external: true },
     { href: "/blog", label: "Blog" },
     { href: "/chat", label: "KobeLLM" },
     { href: "/about", label: "About Me" },
     { href: "/contact", label: "Contact" },
-  ],
+  ] as ReadonlyArray<{ href: string; label: string; external?: boolean }>,
 } as const;
 
 /** Base URL of the Go backend. Public (URL only — never a secret). */

@@ -1,0 +1,130 @@
+---
+title: "Civic Lens — Scoring Methodology"
+date: 2026-07-09
+summary: How every number on the dashboard is computed and bounded — blended bot scores with human-readable indicators, lexicon + LLM sentiment, GOP favorability as an explicitly-labeled proxy, and propaganda detection that refuses to flag anything it can't quote.
+status: shipped
+tags: [LLM, NLP, Python, Scoring, Data]
+repo: https://github.com/young-kobe/civic-lens
+demo: https://civic-lens.info
+---
+
+Every metric on [civic-lens.info](https://civic-lens.info) is produced by a hybrid of
+**deterministic heuristics** (fast, reproducible) and **optional LLM analysis** (better
+interpretation when enabled), and every output row carries a confidence score, the model id,
+and the prompt version that produced it. This writeup walks through the four scoring engines
+and the honesty rules that constrain them.
+
+The companion [invariants writeup](/writeups/civic-lens-invariants) covers the rules
+themselves; this one covers the math.
+
+## Bot detection: a blended score, auditable indicators
+
+The bot detector answers "how likely is this account automated or coordinated?" with a blended
+0–1 score built from an LLM (or heuristic) text-likelihood estimate plus deterministic
+behavioral signals — account age under 7 days, posting rate over 50/day, follower-count and
+follow-ratio anomalies, sustained tweet-rate over account lifetime, unnatural typographic
+purity (smart quotes and em-dashes are rare in casual social writing), near-duplicate
+templated phrasing.
+
+The label comes from the score; confidence is computed *separately* from signal strength and
+indicator count:
+
+```python
+# Label from the blended score
+if score >= 0.7:    label = "bot"         # excluded from public aggregations
+elif score >= 0.4:  label = "suspicious"  # included, flagged for review
+else:               label = "human"
+
+# Confidence from signal strength + indicator count (not a sum of weights)
+if score >= 0.7 and len(indicators) >= 2:
+    confidence = min(0.6 + 0.1 * len(indicators), 0.95)
+```
+
+Three design choices matter more than the thresholds:
+
+- **Indicators are human-readable strings**, each naming the exact signal that fired —
+  `"New account (3 days)"`, `"High posting rate (120/day)"` — so any classification can be
+  audited by a reader, not just trusted.
+- **De-bias rule:** government-verified X accounts are forced to `human` with the score
+  suppressed. An officeholder's account is not a bot in this model, however bot-like its
+  posting cadence.
+- **Exclusion, not deletion:** bot-flagged content is excluded from sentiment, favorability,
+  and narrative aggregations but retained in the database for audit. The classification is a
+  probabilistic lead, not a verdict, and the docs say so.
+
+## Sentiment: lexicon first, LLM when enabled
+
+Content tone is classified `POSITIVE` / `NEGATIVE` / `NEUTRAL` / `MIXED`. The default path is a
+weighted political-domain lexicon with negation and intensifier handling; ratios rather than
+raw counts decide the label (positive must beat negative by 1.5× to call it positive, and
+vice versa). When the LLM is enabled it does the same classification with evidence spans and a
+sarcasm flag.
+
+Aggregated tone is a **net score in points**, not a percentage:
+
+```python
+net_score = ((positive_count - negative_count) / total_count) * 100   # -100 .. +100
+```
+
+<Callout type="note">
+  Sentiment measures content tone, not author intent, and the UI labels everything as
+  "sampled political discourse." Rendering net tone as "pts" on a −100..+100 scale instead of
+  a percentage is deliberate — a percentage implies a share of people, which this is not.
+</Callout>
+
+## GOP favorability: a proxy, labeled as one
+
+Favorability measures content stance toward the Republican Party: entity recognition
+(Republican, Trump, McConnell, …), sentiment toward those entities, then entity-stance pairs
+mapped to an overall stance of `favorable` / `unfavorable` / `neutral` / `mixed`, with
+per-entity stances preserved in the output:
+
+```json
+{
+  "overall_gop_stance": "unfavorable",
+  "entity_stances": { "Trump": "unfavorable", "Republican Party": "neutral" },
+  "confidence": 0.72,
+  "evidence_spans": ["criticized the administration's..."]
+}
+```
+
+The most important line in this engine's spec is a warning, not a formula: this is a **proxy
+metric** over sampled media/social discourse, *not polling data*. It represents what sampled
+content says about the GOP, not what the population believes — and the UI is required to
+present it that way.
+
+## Propaganda detection: no quote, no flag
+
+The propaganda detector flags six starter rhetorical techniques: `loaded_language`,
+`name_calling`, `ad_hominem`, `appeal_to_fear`, `whataboutism`, `doubt_casting`. "Propaganda"
+here is operationally defined as *the presence of measurable rhetorical techniques* — style,
+not truth or intent.
+
+The pipeline is built around verifiability:
+
+1. A cheap deterministic pre-gate short-circuits obviously plain text, so LLM spend goes only
+   where techniques are plausible.
+2. The LLM returns candidate techniques, each with a verbatim `evidence_span`.
+3. **Validation drops** any technique whose span is under four words or isn't a
+   case-insensitive substring of the source text. If the LLM claimed techniques but none
+   validated, the overall score is capped at 0.2.
+
+There is intentionally **no deterministic fallback**: a technique claim without a verifiable
+quote is not surfaced at all. I'd rather under-report than show a "propaganda" flag nobody can
+check.
+
+## The parts shared by every engine
+
+<Metrics
+  caption="Cross-cutting scoring rules."
+  rows={[
+    { metric: "Confidence", value: "0.0 – 1.0", note: "on every output; < 0.3 routes toward the human-review queue" },
+    { metric: "Time windows", value: "24h / 7d / 30d / 90d", note: "every aggregation is windowed by published_at; 30d is the default" },
+    { metric: "Traceability", value: "5 fields", note: "doc_id → source, model_id, prompt_version, created_at, evidence_spans" },
+    { metric: "Bot exclusion", value: "score ≥ 0.7", note: "excluded from public metrics, retained for audit" },
+  ]}
+/>
+
+Every score in the system can be traced from the dashboard back to the exact document, the
+model and prompt version that scored it, and the verbatim text spans it cited. That chain —
+not any individual formula — is the methodology.

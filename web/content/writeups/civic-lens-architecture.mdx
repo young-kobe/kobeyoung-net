@@ -1,0 +1,117 @@
+---
+title: "Civic Lens — System Architecture"
+date: 2026-07-09
+summary: How Civic Lens turns raw news, Reddit, and X into audited discourse metrics — a crash-safe Go crawler, a content-addressed blob store, one SQLite database shared across two languages, a five-engine Python analysis pipeline, and a snapshot-cached API.
+status: shipped
+tags: [Go, Python, SQLite, FastAPI, React, Architecture]
+repo: https://github.com/young-kobe/civic-lens
+demo: https://civic-lens.info
+---
+
+[Civic Lens](https://civic-lens.info) is an audit-driven system for measuring **sampled political
+discourse** across news, Reddit, and X, with a narrative overlay that clusters recurring claims
+and a citation overlay between sources. It's live at
+[civic-lens.info](https://civic-lens.info) and the code is public at
+[github.com/young-kobe/civic-lens](https://github.com/young-kobe/civic-lens).
+
+This writeup covers the shape of the system. Companion pieces cover the
+[scoring methodology](/writeups/civic-lens-scoring), the
+[database schema](/writeups/civic-lens-database), the
+[LLM eval harness](/writeups/civic-lens-llm-evals), and the
+[invariants](/writeups/civic-lens-invariants) every change must preserve.
+
+## The deliberately narrow goal
+
+The scope is stated up front and enforced everywhere: this is a **sampled-discourse tracker**,
+not a causal propagation engine. Every number the UI shows is labeled as a sample, every AI
+output carries a confidence score, and the system never fabricates data — a missing field is a
+`null`, not a guess. That framing decision shaped most of the architecture below.
+
+## The pipeline at a glance
+
+<CivicLensPipeline />
+
+Five layers, two languages, one database:
+
+1. **Ingestion (Go)** — a web crawler, a Reddit fetcher, and an X fetcher run concurrently on a
+   job-queue model. Raw payloads are written to a content-addressed blob store
+   (`data/raw/sha256/`); structured metadata goes into SQLite.
+2. **Persistence (SQLite + filesystem)** — one database file in WAL mode, so many readers can
+   work while a single writer operates. Both the Go and Python sides open it with foreign keys
+   enforced.
+3. **ETL + analysis (Python)** — a loader normalizes raw records into a unified `docs` table
+   (filtered to ~30 days of US-political content, clean text extracted with Trafilatura), then
+   five engines run over unprocessed docs: bot detection, unified sentiment + GOP favorability,
+   deterministic citation extraction, LLM claim extraction, and narrative clustering.
+4. **API (FastAPI)** — serves pre-computed JSON snapshots from `data/cache/`; nothing heavy is
+   computed on the read path. Write/admin routes (`run/*`, `review/*`) are token-gated.
+5. **UI (React + Vite + TypeScript)** — a dashboard that always shows confidence next to
+   predictions and links every evidence doc back to its original source.
+
+## Why the crawler owns its own state machine
+
+The crawler's frontier is a table in SQLite (`pages`), not an in-memory queue. Each URL is
+canonicalized by a pure function and becomes the primary key, which makes deduplication a
+database constraint instead of application logic. Each row moves through a small state machine:
+
+```
+QUEUED → INFLIGHT → DONE
+              ↘ (error) → re-queued with backoff, or FAILED
+```
+
+Two properties fall out of this design:
+
+- **Crash safety.** If the process dies mid-fetch, `INFLIGHT` rows are reset to `QUEUED` on
+  startup. A crash costs re-fetching, never data corruption or lost URLs.
+- **Politeness.** Per-domain token buckets cap the request rate, and a redirect target takes a
+  token against the *target* domain too — so a chain of redirecting sources can't multiply one
+  host's request rate.
+
+The X fetcher adds one more piece of operational realism: a persistent per-month API budget
+table (`x_api_budget`) that tracks post/user/request counts and estimated cents, because the X
+API bills per object and an unbounded fetch loop is a real financial bug.
+
+## Content-addressed storage as the audit foundation
+
+Every raw payload — HTML page, Reddit listing, X response — is stored once under its SHA-256
+hash, and every downstream row carries that `raw_hash`. Files are immutable after write:
+`Hash(StoredBytes) == FilenameHash` is an invariant, and metadata tables point at hashes rather
+than copies.
+
+This is what makes the whole system auditable end to end. Any narrative, sentiment score, or
+propaganda flag in the UI can be walked backwards: aggregate → `ai_outputs` row → `docs` row →
+`raw_hash` → the exact bytes that were fetched. Deduplication of identical content is a side
+benefit; traceability is the point.
+
+## Two languages, one contract
+
+Go does ingestion (concurrency, politeness, crash safety are its strengths); Python does
+analysis (the LLM and NLP ecosystem lives there). They never call each other — the SQLite
+database *is* the interface. That works only because the schema is treated as a real contract:
+migrations are applied by the Go runner, each wrapped in a transaction with its
+`schema_version` row, and both sides enforce the same foreign keys. The
+[schema writeup](/writeups/civic-lens-database) goes deeper on this.
+
+## The read path never computes
+
+The API serves pre-computed snapshots — sentiment, bot activity, propaganda, movers, narratives
+— refreshed by the analysis pipeline (run manually or on a schedule). A dashboard read is a
+file read, which keeps p99 latency flat regardless of corpus size, and means an expensive or
+failed analysis run can never take the public site down: the last good snapshot keeps serving.
+
+```text
+GET /api/v1/sentiment?window=7d    → cached snapshot
+GET /api/v1/narratives?window=7d   → cached snapshot
+POST /api/v1/run/full-pipeline     → admin-gated background job
+GET  /api/v1/review/queue          → admin-gated human-review queue
+```
+
+The review endpoints are how humans feed back into the system: the queue serves
+lowest-confidence outputs first, and submitted verdicts accumulate into the golden set that
+drives the [eval harness](/writeups/civic-lens-llm-evals).
+
+<Callout type="note">
+  Current status: the system is deployed and public. The next milestone is golden-set
+  validation — human review of the eval examples so the CI regression gate can go from
+  report-only to enforcing.
+</Callout>

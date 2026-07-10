@@ -5,7 +5,7 @@ import { PageHeader, Tag } from "@/components/ui";
 
 export const metadata: Metadata = {
   title: "Blog",
-  description: "Longer-form writing in my own voice. Project writeups live under /projects.",
+  description: "Longer-form writing in my own voice. Project writeups live under /writeups.",
 };
 
 /** Terminal-styled empty state — the blog is intentionally empty until I write the first post. */
@@ -35,7 +35,7 @@ export default function BlogPage() {
       <PageHeader
         eyebrow="~/blog"
         title="Blog"
-        lead="Longer-form writing in my own voice. For technical deep-dives, see the writeups under /projects."
+        lead="Longer-form writing in my own voice. For technical deep-dives, see the writeups under /writeups."
       />
       {posts.length === 0 ? (
         <EmptyBlog />

@@ -1,0 +1,137 @@
+---
+title: "Civic Lens — LLM Evals: Golden Set + CI Regression Gate"
+date: 2026-07-09
+summary: How Civic Lens verifies that a prompt, schema, model, or pipeline change didn't silently regress LLM output quality — deterministic span-overlap scoring against a human-verified golden set, replayed recordings in CI, and prompt fingerprinting so stale recordings can't pass.
+status: in-progress
+tags: [LLM, Evals, CI/CD, Python, Testing]
+repo: https://github.com/young-kobe/civic-lens
+demo: https://civic-lens.info
+updates:
+  - date: 2026-07-09
+    note: "Harness, scoring, replay/live modes, fingerprinting, and CI wiring are shipped. Next step: human verification of the 50 golden examples, which activates the gate."
+---
+
+LLM pipelines have a testing problem: the model call is nondeterministic, costs money, and the
+definition of "correct" is fuzzy. The usual outcome is that prompt changes ship on vibes. For
+[Civic Lens](https://civic-lens.info) I built a regression gate that makes a prompt edit as
+testable as a code edit — deterministic in CI, inspectable when it fails, and honest about what
+has and hasn't been human-verified.
+
+Everything below lives in
+[`analysis/evals/`](https://github.com/young-kobe/civic-lens/tree/main/analysis/evals).
+
+## What gets evaluated, and why claim extraction first
+
+The first evaluated stage is **claim extraction** — the LLM stage that pulls discrete,
+checkable claims out of each document. It won over sentiment for three reasons:
+
+- **It's upstream of the flagship feature.** Claims feed narrative clustering and citations. A
+  quality regression here degrades everything downstream *silently*, whereas a per-doc
+  sentiment error is visible and averages out.
+- **It's scoreable without an LLM judge.** Every extracted claim must carry a verbatim evidence
+  span from the source text (a system-wide invariant), so predicted and golden claims can be
+  matched by character-level span overlap. No fuzzy text similarity, no judge model — the score
+  is a deterministic function.
+- **There's no heuristic fallback.** With the LLM disabled the stage returns zero claims, so
+  output quality is entirely prompt/model-determined — exactly what a regression gate needs to
+  watch.
+
+**The metric** is micro-averaged precision / recall / F1 over the golden set. A predicted claim
+is a true positive when its evidence span overlaps a golden span with **IoU ≥ 0.3**, each claim
+matching at most once. Unmatched predictions are false positives (the model over-extracted or
+invented); unmatched golden claims are false negatives (the model missed something a human
+judged extractable).
+
+## The golden set is honest about its provenance
+
+Each golden example is one JSON file:
+
+```json
+{
+  "id": "claims-001",
+  "task": "claim_extraction",
+  "input_text": "...",
+  "input_provenance": "pipeline:docs.id=1428",
+  "expected_claims": [
+    {"claim": "<canonical 5-15 word form>",
+     "evidence_span": "<verbatim substring of input_text>"}
+  ],
+  "review_status": "PENDING_HUMAN_REVIEW",
+  "notes": "what this example tests"
+}
+```
+
+Two rules keep the set trustworthy:
+
+1. **The loader hard-fails** on any example whose evidence span is not a verbatim substring of
+   its input text — the golden set obeys the same invariant the pipeline enforces on model
+   output.
+2. **Only `VERIFIED` examples count** toward scores, the baseline, and the gate. Examples
+   drafted by a model or copied from pipeline output start as `PENDING_HUMAN_REVIEW` and are
+   report-only until a human checks the labels. Unreviewed labels are never presented as ground
+   truth — the initial 50 examples are synthetic drafts, so the gate is deliberately inactive
+   until that review happens. That review is the project's current milestone.
+
+Negatives (texts with no extractable claims) stay in the set on purpose — they're what makes
+precision meaningful.
+
+## Replay mode: deterministic, free, and still testing the real code
+
+The runner always exercises the real pipeline code — `ClaimExtractor.extract`, JSON-schema
+validation, evidence-span verification, claim-shape validation. Only the network call is
+swapped:
+
+<Metrics
+  caption="The two runner modes and what each one catches."
+  rows={[
+    { metric: "Replay (CI default)", value: "$0, deterministic", note: "recorded model responses fed through the live code path — catches regressions in validation, parsing, prompt bookkeeping" },
+    { metric: "Live (--mode live)", value: "real API calls", note: "opt-in; required after any prompt/schema/model change; --record refreshes the recordings CI replays" },
+  ]}
+/>
+
+The obvious hole in replay-based testing: edit the prompt, keep the old recordings, and CI
+happily replays outputs from a pipeline that no longer exists. That hole is closed with
+**prompt fingerprinting** — every recording stores a SHA-256 of (system prompt + user template
++ JSON schema + prompt version) at record time. In replay mode the runner recomputes the
+fingerprint from the live code; a mismatch fails an active gate with instructions to re-record.
+A prompt edit *cannot* pass CI by silently replaying stale outputs.
+
+## The gate
+
+`python -m analysis.evals.run_eval --gate` runs in CI on every PR and again as a pre-deploy
+check:
+
+- **No baseline committed** → the gate is INACTIVE: it warns loudly and exits 0. This is the
+  honest state while golden labels await human verification — better than pretending synthetic
+  drafts are ground truth.
+- **Baseline committed** → the gate fails if any verified example has a missing or
+  fingerprint-stale recording, or if micro-F1 drops more than **0.02** below the committed
+  baseline. The baseline writer refuses to write from anything but verified examples with
+  complete, current recordings.
+
+## The workflow this buys
+
+The question this system answers is the one I'd ask any team shipping LLM features: *how do you
+know a prompt change didn't make things worse before it hit prod?*
+
+1. Edit the prompt or schema; bump the prompt version (the output contract already requires it).
+2. `run_eval --mode live --record` — re-run the golden set, refresh recordings.
+3. Read the per-example diffs: every false positive and false negative is printed as claim
+   text, so a quality drop is *inspectable*, not just a number that went down.
+4. If scores hold, commit recordings + baseline together with the prompt change.
+5. CI replays deterministically from then on. Code changes that alter extraction behavior move
+   the score and trip the gate; prompt changes without step 2 trip the fingerprint check.
+
+<Callout type="tip">
+  The pattern generalizes: any pipeline stage with a verifiable output anchor (spans, labels,
+  structured fields) gets a golden directory, a fingerprint for its prompt + schema, and a
+  task-appropriate metric. Sentiment label agreement and propaganda technique detection are the
+  next candidates.
+</Callout>
+
+## Known limitation
+
+Span-overlap matching means two *different* assertions citing the same span would count as a
+match. In practice the extractor's validation rules anchor claims 1:1 to spans, and the
+per-example diffs surface any such case to a reviewer — but it's a real limitation of the
+metric, documented rather than hidden.

@@ -18,6 +18,14 @@ const nextConfig = {
   // Hetzner box alongside the model. Give them headroom so the build doesn't flake.
   staticPageGenerationTimeout: 120,
 
+  // Projects moved to /writeups (2026-07). Permanent redirects keep old links alive.
+  async redirects() {
+    return [
+      { source: "/projects", destination: "/writeups", permanent: true },
+      { source: "/projects/:slug", destination: "/writeups/:slug", permanent: true },
+    ];
+  },
+
   async headers() {
     return [
       {
