@@ -81,7 +81,7 @@ export default function AboutPage() {
           load, and software that&apos;s secure by default.
         </p>
         <p>
-          I value clear writing (hence the <a href="/projects">writeups</a>), measurable results,
+          I value clear writing (hence the <a href="/writeups">writeups</a>), measurable results,
           and tools that respect the people using them. If you&apos;re hiring for backend,
           data, or ML-systems work, I&apos;d love to talk. Feel free to{" "}
           <a href="/contact">reach out</a>.

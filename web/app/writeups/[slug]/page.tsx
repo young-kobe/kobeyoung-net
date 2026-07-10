@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getProject, getProjects, formatDate } from "@/lib/content";
+import { getWriteup, getWriteups, formatDate } from "@/lib/content";
 import { MdxContent } from "@/components/MdxContent";
 import { BackLink, StatusBadge, Tag } from "@/components/ui";
 import { DecodeText } from "@/components/DecodeText";
 
 export function generateStaticParams() {
-  return getProjects().map((p) => ({ slug: p.slug }));
+  return getWriteups().map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({
@@ -15,9 +15,9 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const project = getProject(slug);
-  if (!project) return {};
-  const { title, summary, hero } = project.frontmatter;
+  const writeup = getWriteup(slug);
+  if (!writeup) return {};
+  const { title, summary, hero } = writeup.frontmatter;
   return {
     title,
     description: summary,
@@ -25,15 +25,15 @@ export async function generateMetadata({
   };
 }
 
-export default async function ProjectPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function WriteupPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const project = getProject(slug);
-  if (!project) notFound();
-  const fm = project.frontmatter;
+  const writeup = getWriteup(slug);
+  if (!writeup) notFound();
+  const fm = writeup.frontmatter;
 
   return (
     <article>
-      <BackLink href="/projects">← all projects</BackLink>
+      <BackLink href="/writeups">← all writeups</BackLink>
 
       <header className="mt-5">
         <div className="flex flex-wrap items-center gap-3">
@@ -68,7 +68,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
       )}
 
       <div className="prose mt-10">
-        <MdxContent source={project.body} />
+        <MdxContent source={writeup.body} />
       </div>
     </article>
   );

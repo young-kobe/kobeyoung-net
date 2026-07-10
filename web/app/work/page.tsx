@@ -86,7 +86,7 @@ export default function WorkPage() {
           </p>
           <p>
             I come at it from the inside. I&apos;ve built a from-scratch{" "}
-            <Link href="/projects/mini-inference-engine">LLM inference engine</Link> (KV cache,
+            <Link href="/writeups/mini-inference-engine">LLM inference engine</Link> (KV cache,
             batching, throughput), self-host models, and have run RAG in production — so the
             recommendations are grounded in how inference actually costs money, not guesswork.
           </p>

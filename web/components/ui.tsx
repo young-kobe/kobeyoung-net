@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ProjectStatus } from "@/lib/content";
+import type { WriteupStatus } from "@/lib/content";
 import { DecodeText } from "./DecodeText";
 
 /** Mono eyebrow over a hairline rule — the recurring "data voice" label. */
@@ -106,14 +106,14 @@ export function Tag({ children }: { children: React.ReactNode }) {
   );
 }
 
-const STATUS_STYLES: Record<ProjectStatus, string> = {
+const STATUS_STYLES: Record<WriteupStatus, string> = {
   shipped: "bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/30",
   "in-progress": "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
   planned: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-400 border-zinc-500/30",
   paused: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30",
 };
 
-export function StatusBadge({ status }: { status: ProjectStatus }) {
+export function StatusBadge({ status }: { status: WriteupStatus }) {
   return (
     <span className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_STYLES[status]}`}>
       {status.replace("-", " ")}

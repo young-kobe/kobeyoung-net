@@ -12,6 +12,11 @@ export function MdxContent({ source }: { source: string }) {
       source={source}
       components={mdxComponents}
       options={{
+        // next-mdx-remote v6 strips JSX expression attributes by default (blockJS), which
+        // breaks components like <Metrics rows={[…]}/>. Our MDX is trusted-author input only
+        // (repo-committed, never user-submitted), so expressions are safe to allow.
+        // blockDangerousJS stays on (default).
+        blockJS: false,
         mdxOptions: {
           remarkPlugins: [remarkGfm],
           rehypePlugins: [

@@ -1,16 +1,16 @@
 import type { MetadataRoute } from "next";
 import { site } from "@/lib/site";
-import { getProjects, getPosts } from "@/lib/content";
+import { getWriteups, getPosts } from "@/lib/content";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = site.url;
-  const staticRoutes = ["", "/projects", "/chat", "/about", "/contact"].map((p) => ({
+  const staticRoutes = ["", "/writeups", "/chat", "/about", "/contact"].map((p) => ({
     url: `${base}${p}`,
     lastModified: new Date(),
   }));
 
-  const projects = getProjects().map((p) => ({
-    url: `${base}/projects/${p.slug}`,
+  const writeups = getWriteups().map((p) => ({
+    url: `${base}/writeups/${p.slug}`,
     lastModified: new Date(p.frontmatter.date),
   }));
 
@@ -19,5 +19,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     lastModified: new Date(p.frontmatter.date),
   }));
 
-  return [...staticRoutes, ...projects, ...posts];
+  return [...staticRoutes, ...writeups, ...posts];
 }

@@ -1,0 +1,114 @@
+---
+title: "Civic Lens — Database Schema & Migrations"
+date: 2026-07-09
+summary: One SQLite database shared by a Go crawler and a Python analysis pipeline — 16 tables across ingestion, corpus, analysis, and ops; 21 transactional migrations; and foreign keys enforced on both sides so traceability is a constraint, not a convention.
+status: shipped
+tags: [SQLite, Go, Python, Data Modeling, Migrations]
+repo: https://github.com/young-kobe/civic-lens
+demo: https://civic-lens.info
+---
+
+[Civic Lens](https://civic-lens.info) stores everything — crawl state, raw-content pointers,
+the normalized corpus, AI outputs, human reviews, narratives, even the X API bill — in a single
+SQLite file shared by the Go ingestion layer and the Python analysis layer. This writeup covers
+how that schema is organized, migrated, and kept honest.
+
+## Why SQLite, and how two languages share it
+
+The system is single-box by design, and its workload is SQLite's sweet spot: WAL mode gives
+many concurrent readers alongside one writer, which matches "analysis pipeline reads while the
+crawler writes" exactly. The more interesting constraint is cross-language integrity: both the
+Go side (via the DSN) and the Python side (via every connection helper) open the database with
+`PRAGMA foreign_keys=ON`, so referential integrity is enforced no matter which process is
+writing. The FK graph below isn't documentation — it's checked at runtime on both sides.
+
+Migrations are applied by the Go runner, which wraps each migration file and its
+`schema_version` insert in one transaction (unless the file manages its own, for table
+rebuilds). Twenty-one migrations so far, and `schema_version` records every one — a gap that
+appeared when migration 004 forgot its version row was backfilled by migration 021 rather than
+papered over.
+
+The schema doc itself has a regeneration rule: it's rebuilt by applying all migrations to a
+scratch database and diffing, never hand-edited. When docs and code can drift, the code wins
+and the docs get regenerated.
+
+## The 16 tables, in four groups
+
+<Metrics
+  caption="Live tables by layer."
+  rows={[
+    { metric: "Ingestion", value: "5", note: "pages, articles_raw, reddit_posts_raw, x_posts_raw, x_users_raw" },
+    { metric: "Normalized corpus", value: "1", note: "docs — the parent of every analysis FK" },
+    { metric: "Analysis", value: "8", note: "ai_outputs, ai_output_evals, prompt_versions, narratives, narrative_docs, narrative_citations, account_profiles, author_bot_scores" },
+    { metric: "Ops", value: "2", note: "x_api_budget, schema_version" },
+  ]}
+/>
+
+### Ingestion: the frontier is a state machine in a table
+
+`pages` is the crawler's frontier. The canonical URL is the primary key (dedup by constraint),
+and crawl state is an integer with a `CHECK(state IN (0,1,2,3))` — QUEUED, INFLIGHT, DONE,
+FAILED. `INFLIGHT` rows are reset to `QUEUED` on startup, which is the whole crash-recovery
+story. The row also carries `retries`, `next_fetch_at` (backoff), `etag`/`last_modified`
+(revalidation), and `last_error` — the operational surface of the crawler is queryable with
+plain SQL.
+
+Each raw table (`articles_raw`, `reddit_posts_raw`, `x_posts_raw`, `x_users_raw`) carries two
+columns that matter more than the payload fields: `raw_hash` (FK-in-spirit to the
+content-addressed blob store, making every parsed record traceable to exact fetched bytes) and
+`extraction_version` (so records parsed by different extractor logic are distinguishable).
+`x_posts_raw` also keeps a provenance flag, `is_official_tier`, marking posts that arrived via
+the verified-officials timeline pull — with a partial index (`WHERE is_official_tier = 1`)
+since it's queried only one way.
+
+### Corpus: one `docs` table to rule the FKs
+
+The Python ETL normalizes all raw sources into `docs` — one row per document with
+`source_type` constrained by CHECK, a unique `ident`, clean `text`, `raw_hash`, and an
+`etl_version` stamp (bumped whenever the keyword filter, 30-day rule, or extraction logic
+changes, so docs produced by different ETL logic never masquerade as comparable). Per-source
+extras live in a `metadata_json` column rather than nullable columns for every platform quirk.
+
+### Analysis: outputs, humans, and narratives
+
+`ai_outputs` is the workhorse: one row per (doc, task) with `output_json`, `confidence`,
+`model_id`, `prompt_version`, and an `inference_method` constrained to
+`llm | heuristic | deterministic`. The AI-output contract from the
+[invariants](/writeups/civic-lens-invariants) — every output has confidence and provenance —
+is column-level here, not convention.
+
+`ai_output_evals` stores human verdicts (label, confidence, `is_correct`, `is_golden`), keyed
+UNIQUE to one output — this is where the review queue writes and where the
+[golden set](/writeups/civic-lens-llm-evals) grows. `prompt_versions` is a registry of every
+prompt ever used, so `ai_outputs.prompt_version` always resolves to real text.
+
+The narrative overlay is three tables: `narratives` (clusters of recurring claims, stamped
+with the `clustering_mode` — Jaccard or embedding — and threshold that produced them),
+`narrative_docs` (assignments, UNIQUE per pair, with confidence), and `narrative_citations`
+(deterministic edges: `url_citation | quote | reply | retweet`, with a CHECK that every row
+has a target). Naming is careful: `first_seen_at` means "earliest doc *we ingested*," not
+"origin of the narrative" — the schema refuses to claim more than the data supports.
+
+`account_profiles` (curated officeholder/affiliation tiers) and `author_bot_scores`
+(per-author aggregates with variance and sample counts) round out the layer.
+
+### Ops: the bill is a table too
+
+`x_api_budget` tracks per-month X API usage — post/user/request counts and `estimated_cents` —
+because the X API bills per object and budget enforcement needs to survive restarts. Putting
+cost control in the same transactional store as everything else means the fetcher can check
+the budget in the same database it's already writing to.
+
+## Schema evolution, honestly
+
+A few migration decisions worth calling out:
+
+- **Destructive cleanups are real deletions.** Migration 005 dropped three dead tables
+  (`reddit_comments_raw`, `clusters`, `cluster_assignments`); they're gone from the docs too,
+  not kept "for reference."
+- **Columns get removed, not abandoned.** Migration 021 dropped `docs.place_country_code` and
+  `docs.fetched_at` once the country signal moved into `metadata_json` — found by audit, fixed
+  by migration.
+- **Constraints arrive by migration as the invariants firm up** — the `pages.state` CHECK
+  (013), `inference_method` CHECK (012), link-type CHECK (016). The schema gets *stricter*
+  over time, which is the direction a data system should drift.

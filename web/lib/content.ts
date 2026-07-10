@@ -1,9 +1,9 @@
 /**
- * Git-as-CMS content loader. Projects and blog posts are MDX files under `content/`.
- * Adding a project or post = dropping in one `.mdx` file with valid frontmatter.
+ * Git-as-CMS content loader. Writeups and blog posts are MDX files under `content/`.
+ * Adding a writeup or post = dropping in one `.mdx` file with valid frontmatter.
  * No database, no external CMS.
  *
- * Frontmatter schema (see ProjectFrontmatter / PostFrontmatter below) is validated at
+ * Frontmatter schema (see WriteupFrontmatter / PostFrontmatter below) is validated at
  * read time; a malformed file fails the build loudly rather than shipping broken pages.
  */
 import fs from "node:fs";
@@ -28,13 +28,13 @@ function readingMinutes(text: string): number {
 
 const CONTENT_DIR = path.join(process.cwd(), "content");
 
-export type ProjectStatus = "shipped" | "in-progress" | "planned" | "paused";
+export type WriteupStatus = "shipped" | "in-progress" | "planned" | "paused";
 
-export interface ProjectFrontmatter {
+export interface WriteupFrontmatter {
   title: string;
   date: string; // ISO yyyy-mm-dd
   summary: string;
-  status: ProjectStatus;
+  status: WriteupStatus;
   tags: string[];
   hero?: string;
   repo?: string;
@@ -85,7 +85,7 @@ function requireString(fm: any, key: string, slug: string): string {
   return v;
 }
 
-function validateProject(fm: any, slug: string): ProjectFrontmatter {
+function validateWriteup(fm: any, slug: string): WriteupFrontmatter {
   const status = fm.status;
   if (!["shipped", "in-progress", "planned", "paused"].includes(status)) {
     throw new Error(`content/${slug}: status must be shipped | in-progress | planned | paused`);
@@ -118,16 +118,16 @@ function byDateDesc<T extends { date: string }>(a: Doc<T>, b: Doc<T>) {
   return b.frontmatter.date.localeCompare(a.frontmatter.date);
 }
 
-export function getProjects(): Doc<ProjectFrontmatter>[] {
-  return readDir("projects")
-    .map((f) => readDoc("projects", f, validateProject))
+export function getWriteups(): Doc<WriteupFrontmatter>[] {
+  return readDir("writeups")
+    .map((f) => readDoc("writeups", f, validateWriteup))
     .sort(byDateDesc);
 }
 
-export function getProject(slug: string): Doc<ProjectFrontmatter> | null {
+export function getWriteup(slug: string): Doc<WriteupFrontmatter> | null {
   const file = `${slug}.mdx`;
-  if (!readDir("projects").includes(file)) return null;
-  return readDoc("projects", file, validateProject);
+  if (!readDir("writeups").includes(file)) return null;
+  return readDoc("writeups", file, validateWriteup);
 }
 
 export function getPosts(includeDrafts = false): Doc<PostFrontmatter>[] {
