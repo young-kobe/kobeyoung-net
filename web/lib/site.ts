@@ -20,6 +20,7 @@ export const site = {
     { href: "https://civic-lens.info", label: "Civic Lens", external: true },
     { href: "/blog", label: "Blog" },
     { href: "/chat", label: "KobeLLM" },
+    { href: "/gateway", label: "Gateway Chat" },
     { href: "/about", label: "About Me" },
     { href: "/contact", label: "Contact" },
   ] as ReadonlyArray<{ href: string; label: string; external?: boolean }>,

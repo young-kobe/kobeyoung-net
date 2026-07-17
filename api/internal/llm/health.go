@@ -14,38 +14,65 @@ import (
 // can't be amplified into a burst of upstream probes.
 const healthTTL = 5 * time.Second
 
-// HealthHandler reports backend liveness plus upstream model reachability, which the
-// frontend uses to show the demo as online/offline.
+// HealthHandler reports backend liveness plus upstream reachability, which the frontend
+// uses to show a demo as online/offline. It serves both the self-hosted model (/health)
+// and the ts-llm-gateway (/gateway/health) — same probe, different upstream + labels.
 type HealthHandler struct {
-	cfg    *config.Config
-	client *http.Client
+	enabled bool
+	baseURL string // upstream base; probed at baseURL + "/health"
+	name    string // model display name reported when online
+	params  string // optional param count (self-hosted only)
+	quant   string // optional quantization (self-hosted only)
+	client  *http.Client
 
 	mu       sync.Mutex
 	cachedAt time.Time
 	cached   bool
 }
 
+// NewHealthHandler reports on the self-hosted model backend (drives KobeLLM + /stats).
 func NewHealthHandler(cfg *config.Config) *HealthHandler {
-	return &HealthHandler{cfg: cfg, client: &http.Client{Timeout: 3 * time.Second}}
+	return &HealthHandler{
+		enabled: cfg.DemoEnabled,
+		baseURL: cfg.ModelBaseURL,
+		name:    cfg.ModelName,
+		params:  cfg.ModelParams,
+		quant:   cfg.ModelQuant,
+		client:  &http.Client{Timeout: 3 * time.Second},
+	}
+}
+
+// NewGatewayHealthHandler reports on the ts-llm-gateway upstream (drives the /gateway chat).
+func NewGatewayHealthHandler(cfg *config.Config) *HealthHandler {
+	return &HealthHandler{
+		enabled: cfg.GatewayEnabled,
+		baseURL: cfg.GatewayBaseURL,
+		name:    cfg.GatewayModelLabel,
+		client:  &http.Client{Timeout: 3 * time.Second},
+	}
 }
 
 func (h *HealthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]any{"ok": true, "model": "offline"}
-	if h.cfg.DemoEnabled && h.modelOnline(r.Context()) {
+	if h.enabled && h.modelOnline(r.Context()) {
 		resp["model"] = "online"
-		resp["modelName"] = h.cfg.ModelName
-		resp["modelParams"] = h.cfg.ModelParams
-		resp["modelQuant"] = h.cfg.ModelQuant
+		resp["modelName"] = h.name
+		if h.params != "" {
+			resp["modelParams"] = h.params
+		}
+		if h.quant != "" {
+			resp["modelQuant"] = h.quant
+		}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-// Online reports whether the demo is enabled and the upstream model is reachable, reusing
-// the same cached probe as /health so /stats polling doesn't add upstream traffic.
+// Online reports whether the demo is enabled and the upstream is reachable, reusing the
+// same cached probe as /health so /stats polling doesn't add upstream traffic.
 func (h *HealthHandler) Online(ctx context.Context) bool {
-	return h.cfg.DemoEnabled && h.modelOnline(ctx)
+	return h.enabled && h.modelOnline(ctx)
 }
 
 // modelOnline returns the cached reachability result when fresh, otherwise probes the
@@ -71,7 +98,7 @@ func (h *HealthHandler) modelOnline(ctx context.Context) bool {
 func (h *HealthHandler) modelReachable(ctx context.Context) bool {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, h.cfg.ModelBaseURL+"/health", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, h.baseURL+"/health", nil)
 	if err != nil {
 		return false
 	}

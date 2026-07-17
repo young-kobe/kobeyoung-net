@@ -135,13 +135,19 @@ export default function HomePage() {
             provider routing; SignalR fan-out became SSE.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/gateway"
+              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            >
+              Try the live chat
+            </Link>
             <a
               href="https://ts-llm-gateway.vercel.app/"
               target="_blank"
               rel="noopener"
-              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+              className="rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
             >
-              Live demo
+              Live stats dashboard
             </a>
             <a
               href="https://github.com/young-kobe/ts-llm-gateway"
