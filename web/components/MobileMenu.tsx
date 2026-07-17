@@ -35,7 +35,6 @@ export function MobileMenu() {
                   className="rounded-md px-2 py-3 font-mono text-sm text-accent transition-colors hover:bg-surface"
                 >
                   {item.label}
-                  <span aria-hidden="true" className="ml-1">↗</span>
                 </a>
               ) : (
                 <Link
