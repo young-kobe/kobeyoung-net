@@ -25,6 +25,23 @@ function buildFacts(): BuildFacts {
   };
 }
 
+/** ts-llm-gateway production policies — sourced from the repo README. */
+const GATEWAY_FEATURES = [
+  { label: "Unified + OpenAI-compatible API", note: "one native endpoint plus a drop-in /v1/chat/completions" },
+  { label: "Rate limiting", note: "per-key & per-IP token buckets, constant-time key checks" },
+  { label: "Failover & retry", note: "exponential backoff + jitter across providers" },
+  { label: "Circuit breaker", note: "quarantines a downed provider, half-open probes it back" },
+  { label: "Streaming with abort", note: "SSE tokens; client disconnect cancels the upstream call" },
+  { label: "Cache & state", note: "LRU response cache; in-memory or Upstash Redis, degrades gracefully" },
+];
+
+/** Verified numbers only — measured live, no fabricated metrics. */
+const GATEWAY_METRICS = [
+  { value: "~6×", label: "cache-hit speedup (0.22s vs 1.27s)" },
+  { value: "87", label: "mock-injected tests, keyless in CI" },
+  { value: "2", label: "providers behind one interface" },
+];
+
 /** The Civic Lens deep-dive series (content/writeups/civic-lens-*.mdx). */
 const CIVIC_LENS_WRITEUPS = [
   { slug: "civic-lens-architecture", label: "System architecture", note: "Go crawler → SQLite → Python analysis → FastAPI → React" },
@@ -67,7 +84,7 @@ export default function HomePage() {
             rel="noopener"
             className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
           >
-            Civic Lens — live ↗
+            Civic Lens — live
           </a>
           <Link
             href="/writeups"
@@ -93,10 +110,74 @@ export default function HomePage() {
         </p>
       </section>
 
-      {/* Featured project — Civic Lens, deployed at civic-lens.info */}
+      {/* Featured project — ts-llm-gateway, deployed on Vercel */}
       <Reveal>
         <section>
-          <SectionLabel>featured — civic-lens.info</SectionLabel>
+          <SectionLabel>featured — ts-llm-gateway.vercel.app</SectionLabel>
+          <div className="mt-6 flex flex-wrap items-baseline gap-x-4 gap-y-2">
+            <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">ts-llm-gateway</h2>
+            <span className="font-mono text-xs text-muted">TypeScript · Vercel AI SDK · AWS Bedrock + OpenAI · Hono · Upstash Redis</span>
+          </div>
+          <p className="mt-4 max-w-2xl leading-relaxed text-muted">
+            A production-style, multi-provider LLM gateway in strict TypeScript — one unified API
+            plus an OpenAI-compatible surface (a drop-in <span className="font-mono">baseURL</span>{" "}
+            swap) that routes to AWS Bedrock and OpenAI behind a single injected provider interface,
+            wrapped in real production policies: per-key/IP rate limiting, retry with backoff and
+            cross-provider failover, a circuit breaker that quarantines a downed provider and
+            probes it back, per-call timeouts, an LRU response cache, and SSE streaming that aborts
+            the upstream call when the client disconnects.
+          </p>
+          <p className="mt-4 max-w-2xl leading-relaxed text-muted">
+            The point: it&apos;s the same class of system I built at work — a real-time streaming
+            pipeline — re-expressed as an LLM proxy. Kinesis backpressure became rate limiting;
+            retry/backoff became failover; quarantining a bad dependency became the circuit breaker;
+            shard-consumer cancellation became streaming abort; composite routing keys became
+            provider routing; SignalR fan-out became SSE.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <a
+              href="https://ts-llm-gateway.vercel.app/"
+              target="_blank"
+              rel="noopener"
+              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            >
+              Live demo
+            </a>
+            <a
+              href="https://github.com/young-kobe/ts-llm-gateway"
+              target="_blank"
+              rel="noopener"
+              className="rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+            >
+              Source on GitHub
+            </a>
+          </div>
+          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {GATEWAY_FEATURES.map((f) => (
+              <div key={f.label} className="rounded-lg border border-border bg-surface p-4">
+                <span className="text-sm font-medium">{f.label}</span>
+                <p className="mt-1.5 font-mono text-xs text-muted">{f.note}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            {GATEWAY_METRICS.map((m) => (
+              <div key={m.label} className="rounded-lg border border-border bg-surface px-4 py-3">
+                <div className="font-display text-2xl font-bold tabular-nums">{m.value}</div>
+                <div className="mt-1 text-xs text-muted">{m.label}</div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 font-mono text-xs text-muted">
+            {"// ~6× cache-hit speedup and cross-provider failover both verified on the live deployment"}
+          </p>
+        </section>
+      </Reveal>
+
+      {/* Also featured — Civic Lens, deployed at civic-lens.info */}
+      <Reveal>
+        <section>
+          <SectionLabel>also featured — civic-lens.info</SectionLabel>
           <div className="mt-6 flex flex-wrap items-baseline gap-x-4 gap-y-2">
             <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">Civic Lens</h2>
             <span className="font-mono text-xs text-muted">Go · Python · SQLite · FastAPI · React · LLM pipeline</span>
@@ -115,7 +196,7 @@ export default function HomePage() {
               rel="noopener"
               className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
             >
-              Open the live dashboard ↗
+              Open the live dashboard
             </a>
             <a
               href="https://github.com/young-kobe/civic-lens"

@@ -29,7 +29,6 @@ export function Nav() {
                   className="rounded-md px-2.5 py-1.5 font-mono text-[0.8rem] text-accent transition-colors hover:bg-surface"
                 >
                   {item.label}
-                  <span aria-hidden="true" className="ml-1">↗</span>
                 </a>
               ) : (
                 <Link
