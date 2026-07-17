@@ -139,7 +139,7 @@ export function DemoChat({
         <p className="font-medium">Demo offline</p>
         <p className="mt-1 text-sm text-muted">
           The inference backend isn&apos;t reachable right now. The rest of the site works
-          normally — check back soon.
+          normally. Check back soon.
         </p>
       </div>
     );
@@ -166,7 +166,7 @@ export function DemoChat({
             </dl>
           ) : (
             <dl className="mx-auto mt-5 max-w-xs space-y-1.5 text-sm">
-              <SpecRow label="Model" value={modelName || "—"} />
+              <SpecRow label="Model" value={modelName || "-"} />
               {modelParams && <SpecRow label="Parameters" value={modelParams} />}
               {modelQuant && <SpecRow label="Quantization" value={modelQuant} />}
               <SpecRow label="Runtime" value="llama.cpp · CPU" />

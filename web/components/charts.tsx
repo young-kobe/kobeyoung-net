@@ -87,14 +87,14 @@ export function BenchBatching() {
   });
   return (
     <InstrumentFrame
-      title="Batch occupancy over time — continuous vs. static batching"
+      title="Batch occupancy over time · continuous vs. static batching"
       badge="exp 1"
       footnote={
         <>
           Same workload (256 requests), same generous KV pool, 32 batch slots. Continuous batching
           holds mean occupancy {b.continuousOccupancy.toFixed(1)}/32 and finishes in{" "}
           {b.continuousMakespan.toLocaleString()} rounds; static holds {b.staticOccupancy.toFixed(1)}/32
-          and takes {b.staticMakespan.toLocaleString()} — {b.speedup.toFixed(2)}× fewer rounds. Rounds
+          and takes {b.staticMakespan.toLocaleString()} ({b.speedup.toFixed(2)}× fewer rounds). Rounds
           are a scheduling step, not wall-clock. Hover to inspect.
         </>
       }
@@ -115,8 +115,8 @@ export function BenchBatching() {
       />
       <Legend
         items={[
-          { color: ACCENT, label: `continuous — ${b.continuousOccupancy.toFixed(1)}/32 avg` },
-          { color: MUTED, label: `static — ${b.staticOccupancy.toFixed(1)}/32 avg` },
+          { color: ACCENT, label: `continuous · ${b.continuousOccupancy.toFixed(1)}/32 avg` },
+          { color: MUTED, label: `static · ${b.staticOccupancy.toFixed(1)}/32 avg` },
         ]}
       />
     </InstrumentFrame>
@@ -128,7 +128,7 @@ export function BenchFragmentation() {
   const f = getFragmentation();
   return (
     <InstrumentFrame
-      title="Peak KV memory — paging vs. contiguous reserve-to-max"
+      title="Peak KV memory · paging vs. contiguous reserve-to-max"
       badge="exp 2"
       footnote={
         <>
@@ -159,13 +159,13 @@ export function BenchPrefix() {
   const p = getPrefixSharing();
   return (
     <InstrumentFrame
-      title="Peak KV memory — prefix sharing on vs. off"
+      title="Peak KV memory · prefix sharing on vs. off"
       badge="exp 3"
       footnote={
         <>
           {p.requests} requests sharing an identical {p.systemPromptTokens}-token system prompt. With
           sharing on, the prompt&apos;s blocks are refcounted once instead of copied {p.requests}{" "}
-          times — {Math.round((1 - p.onMib / p.offMib) * 100)}% less peak KV.
+          times ({Math.round((1 - p.onMib / p.offMib) * 100)}% less peak KV).
         </>
       }
     >
@@ -196,12 +196,12 @@ export function BenchSaturation() {
   }));
   return (
     <InstrumentFrame
-      title="Throughput under memory pressure — graceful, then a cliff"
+      title="Throughput under memory pressure · graceful, then a cliff"
       badge="exp 4"
       footnote={
         <>
           Fixed workload; KV pool shrunk from 2× down to 0.04× of the natural peak. Throughput
-          degrades smoothly with <strong>zero dropped requests down to 1/10th</strong> the budget —
+          degrades smoothly with <strong>zero dropped requests down to 1/10th</strong> the budget, as
           the engine recomputes more via preemption. Requests drop only below ~0.06×, where the pool
           can&apos;t hold even one long sequence. Hover a point for pool size and preemptions.
         </>

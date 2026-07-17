@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/ui";
 export const metadata: Metadata = {
   title: "Gateway Chat",
   description:
-    "A second live chat, routed through ts-llm-gateway — a production-style multi-provider LLM proxy — to AWS Bedrock, with rate limiting, failover, a circuit breaker, and caching.",
+    "A second live chat, routed through ts-llm-gateway, a production-style multi-provider LLM proxy, to AWS Bedrock, with rate limiting, failover, a circuit breaker, and caching.",
 };
 
 const SPECS = [
@@ -19,7 +19,7 @@ const SPECS = [
 const SUGGESTIONS = [
   "Explain a circuit breaker like I'm a backend dev.",
   "Write a haiku about exponential backoff.",
-  "Ask the same thing twice — show me the cache hit.",
+  "Ask the same thing twice, then show me the cache hit.",
   "What's the difference between rate limiting and load shedding?",
 ];
 
@@ -36,12 +36,12 @@ export default function GatewayPage() {
           className="text-accent hover:underline"
         >
           ts-llm-gateway
-        </a>{" "}
-        — a multi-provider LLM gateway in strict TypeScript — to AWS Bedrock (with OpenAI as
+        </a>
+        , a multi-provider LLM gateway in strict TypeScript, to AWS Bedrock (with OpenAI as
         automatic failover). Behind the stream sit real production policies: per-key/IP rate
         limiting, retry with backoff, a circuit breaker that quarantines a downed provider, and
-        an LRU response cache. It&apos;s the same class of system I built at work — a real-time
-        streaming pipeline — re-expressed as an LLM proxy. Your browser only ever talks to my Go
+        an LRU response cache. It&apos;s the same class of system I built at work, a real-time
+        streaming pipeline, re-expressed as an LLM proxy. Your browser only ever talks to my Go
         backend, which holds the gateway key; the counters below are the gateway&apos;s own live{" "}
         <code className="font-mono text-sm">/stats</code>, proxied through that backend.
       </p>

@@ -307,7 +307,7 @@ export function ScopeFragGrid({ label, wastePct }: { label: string; wastePct: nu
   return (
     <div ref={ref}>
       <div className="mb-2 text-xs text-muted">
-        <span className="font-medium text-fg">{label}</span> — {wastePct.toFixed(0)}% wasted
+        <span className="font-medium text-fg">{label}</span> · {wastePct.toFixed(0)}% wasted
       </div>
       <svg viewBox="0 0 100 100" className="h-auto w-full" role="img"
         aria-label={`${label}: ${(100 - wastePct).toFixed(0)}% of KV memory used, ${wastePct.toFixed(0)}% wasted`}>

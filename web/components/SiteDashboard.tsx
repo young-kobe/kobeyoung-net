@@ -72,47 +72,47 @@ export function SiteDashboard({ build }: { build: BuildFacts }) {
         <CornerTicks className="opacity-40" />
 
         {/* KobeLLM — the live demo model + its measured generation stats */}
-        <Group title={`kobellm — ${online ? "online" : "offline"}`}>
-          <Tile label="model" value={stats?.model.name ?? "—"} sub={specSub(stats)} />
-          <Tile label="throughput" value={g ? `${g.lastTokPerSec.toFixed(1)}` : "—"} sub="tok/s · last" accent />
-          <Tile label="first token" value={g ? `${nf(g.lastTtftMs)}` : "—"} sub="ms · last" />
+        <Group title={`kobellm · ${online ? "online" : "offline"}`}>
+          <Tile label="model" value={stats?.model.name ?? "-"} sub={specSub(stats)} />
+          <Tile label="throughput" value={g ? `${g.lastTokPerSec.toFixed(1)}` : "-"} sub="tok/s · last" accent />
+          <Tile label="first token" value={g ? `${nf(g.lastTtftMs)}` : "-"} sub="ms · last" />
           <Tile
             label="responses"
-            value={g ? nf(g.totalResponses) : "—"}
+            value={g ? nf(g.totalResponses) : "-"}
             sub={g ? `${nf(g.totalTokens)} tokens` : "since deploy"}
           />
           <Tile
             label="today"
-            value={g ? `${nf(g.responsesToday)}` : "—"}
+            value={g ? `${nf(g.responsesToday)}` : "-"}
             sub={g ? `of ${nf(g.dailyCap)} budget` : "daily budget"}
           />
         </Group>
 
         {/* Host box — real machine utilization from /proc */}
-        <Group title="host — hetzner box">
-          <Tile label="cpu" value={h ? `${h.cpuPct.toFixed(0)}%` : "—"} sub={h ? `${h.cores} cores` : "utilization"} accent />
-          <Tile label="memory" value={h ? `${h.memUsedPct.toFixed(0)}%` : "—"} sub="used" />
-          <Tile label="load" value={h ? h.load1.toFixed(2) : "—"} sub="1-min avg" />
-          <Tile label="machine up" value={h ? fmtUptime(h.uptimeSec) : "—"} sub="host uptime" />
+        <Group title="host · hetzner box">
+          <Tile label="cpu" value={h ? `${h.cpuPct.toFixed(0)}%` : "-"} sub={h ? `${h.cores} cores` : "utilization"} accent />
+          <Tile label="memory" value={h ? `${h.memUsedPct.toFixed(0)}%` : "-"} sub="used" />
+          <Tile label="load" value={h ? h.load1.toFixed(2) : "-"} sub="1-min avg" />
+          <Tile label="machine up" value={h ? fmtUptime(h.uptimeSec) : "-"} sub="host uptime" />
         </Group>
 
         {/* Site — traffic, abuse deflected, and build facts */}
-        <Group title="site — since last deploy">
+        <Group title="site · since last deploy">
           <Tile
             label="api requests"
-            value={s ? nf(s.requests.total) : "—"}
+            value={s ? nf(s.requests.total) : "-"}
             sub={s ? `${nf(s.requests.chat)} chat · ${nf(s.requests.contact)} contact` : "served"}
           />
           <Tile
             label="abuse deflected"
-            value={s ? nf(s.abuse.honeypot + s.abuse.rateLimited + s.abuse.turnstileFailed) : "—"}
+            value={s ? nf(s.abuse.honeypot + s.abuse.rateLimited + s.abuse.turnstileFailed) : "-"}
             sub={s ? `${nf(s.abuse.honeypot)} trap · ${nf(s.abuse.rateLimited)} limited` : "honeypot + limits"}
             accent
           />
-          <Tile label="messages" value={s ? nf(s.contactSent) : "—"} sub="contact form" />
+          <Tile label="messages" value={s ? nf(s.contactSent) : "-"} sub="contact form" />
           <Tile label="content" value={nf(build.projects + build.posts)} sub={`${nf(build.words)} words written`} />
           <Tile label="deployed" value={build.sha} sub={build.time ? fmtAgo(build.time) : "dev build"} />
-          <Tile label="api up" value={s ? fmtUptime(s.uptimeSec) : "—"} sub="process uptime" />
+          <Tile label="api up" value={s ? fmtUptime(s.uptimeSec) : "-"} sub="process uptime" />
         </Group>
       </div>
     </section>
@@ -161,7 +161,7 @@ function specSub(stats: StatsResponse | null): string {
 }
 
 function fmtUptime(sec: number): string {
-  if (!sec || sec <= 0) return "—";
+  if (!sec || sec <= 0) return "-";
   const d = Math.floor(sec / 86400);
   const h = Math.floor((sec % 86400) / 3600);
   const m = Math.floor((sec % 3600) / 60);

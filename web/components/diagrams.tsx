@@ -67,7 +67,7 @@ export function EngineArchitecture() {
         aria-label="Architecture: a waiting FCFS queue feeds a reap-admit-decode scheduler that maintains a running batch of up to 32 sequences; under memory pressure it preempts the most-recent sequence back to the front of the queue. Every sequence's block table maps into a single paged block pool with a LIFO free list and per-block refcounts.">
         <ArrowDefs />
         {/* lifecycle row */}
-        <Node x={16} y={40} w={150} h={64} lines={["Waiting queue", "std::deque — FCFS", "front = next in"]} />
+        <Node x={16} y={40} w={150} h={64} lines={["Waiting queue", "std::deque · FCFS", "front = next in"]} />
         <Node x={270} y={30} w={180} h={84} lines={["Scheduler", "reap → admit → decode", "one step per round"]} accent />
         <Node x={554} y={40} w={150} h={64} lines={["Running batch", "≤ 32 sequences", "back = evict victim"]} />
 
@@ -86,7 +86,7 @@ export function EngineArchitecture() {
 
         {/* memory layer */}
         <Node x={16} y={216} w={688} h={96}
-          lines={["Block pool — one contiguous arena", "fixed 16-token blocks · LIFO free list · per-block refcount[]", "OOM is a sentinel (kInvalidBlock), never an exception"]} />
+          lines={["Block pool · one contiguous arena", "fixed 16-token blocks · LIFO free list · per-block refcount[]", "OOM is a sentinel (kInvalidBlock), never an exception"]} />
         {/* connectors from running batch down to the pool */}
         <line x1={629} y1={104} x2={500} y2={214} stroke={BORDER} strokeWidth={1} markerEnd="url(#ah)" />
         <text x={604} y={180} textAnchor="middle" className="font-mono" style={{ fill: MUTED, fontSize: "10px" }}>
@@ -119,7 +119,7 @@ export function CivicLensPipeline() {
         <Node x={492} y={20} w={212} h={58} lines={["X fetcher (Go)", "posts · users · $ budget tracker"]} />
 
         {/* storage row */}
-        <Node x={110} y={128} w={280} h={64} lines={["SQLite — civic_lens.db", "WAL mode · FKs on · 21 migrations"]} accent />
+        <Node x={110} y={128} w={280} h={64} lines={["SQLite · civic_lens.db", "WAL mode · FKs on · 21 migrations"]} accent />
         <Node x={446} y={128} w={220} h={64} lines={["Raw blob store", "data/raw/sha256 · immutable"]} />
 
         {/* ingestion → storage */}

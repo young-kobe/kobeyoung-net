@@ -9,7 +9,7 @@ export function Nav() {
       <nav className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
         <Link
           href="/"
-          aria-label={`${site.name} — home`}
+          aria-label={`${site.name} home`}
           className="group inline-flex items-baseline font-display text-base font-bold tracking-tight"
         >
           <span className="transition-colors group-hover:text-accent">kobe young</span>
