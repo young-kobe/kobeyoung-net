@@ -2,10 +2,13 @@
 //
 // Endpoints:
 //
-//	POST /contact     — validated, spam-protected contact form → email via Resend
-//	POST /chat        — SSE streaming proxy to the self-hosted LLM (with abuse controls)
-//	GET  /health      — backend + upstream-model liveness for the demo online/offline UI
-//	GET  /stats       — live model + host + site counters for the dashboard
+//	POST /contact        — validated, spam-protected contact form → email via Resend
+//	POST /chat           — SSE streaming proxy to the self-hosted LLM (with abuse controls)
+//	POST /gateway        — SSE streaming proxy through ts-llm-gateway → Bedrock (own controls)
+//	GET  /health         — backend + upstream-model liveness for the demo online/offline UI
+//	GET  /gateway/health — ts-llm-gateway liveness for the gateway-chat online/offline UI
+//	GET  /gateway/stats  — proxied live counters from ts-llm-gateway (browser never hits Vercel)
+//	GET  /stats          — live model + host + site counters for the dashboard
 //
 // All secrets are read from the environment (see api/.env.example). The browser only
 // ever talks to this service.
@@ -56,11 +59,19 @@ func main() {
 	demoLimiter := ratelimit.New(cfg.DemoPerIPPerMin, cfg.DemoPerIPPerDay, cfg.DemoGlobalPerDay)
 	demoLimiter.StartJanitor(5*time.Minute, stop)
 
+	// The gateway chat gets its own, tighter limiter: unlike the self-hosted model, every
+	// token it forwards to Bedrock costs real money, so this is the spend ceiling.
+	gatewayLimiter := ratelimit.New(cfg.GatewayPerIPPerMin, cfg.GatewayPerIPPerDay, cfg.GatewayGlobalPerDay)
+	gatewayLimiter.StartJanitor(5*time.Minute, stop)
+
 	healthHandler := llm.NewHealthHandler(cfg)
 
 	mux := http.NewServeMux()
 	mux.Handle("/contact", contact.NewHandler(cfg, contactLimiter, mailer, ts, metr))
 	mux.Handle("/chat", llm.NewHandler(cfg, demoLimiter, ts, metr))
+	mux.Handle("/gateway", llm.NewGatewayHandler(cfg, gatewayLimiter, ts, metr))
+	mux.Handle("/gateway/health", llm.NewGatewayHealthHandler(cfg))
+	mux.Handle("/gateway/stats", llm.NewGatewayStatsHandler(cfg))
 	mux.Handle("/health", healthHandler)
 	mux.Handle("/stats", llm.NewStatsHandler(cfg, healthHandler, metr, host, demoLimiter))
 
@@ -80,7 +91,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("api listening on :%s (turnstile=%v demo=%v)", cfg.Port, cfg.TurnstileEnabled, cfg.DemoEnabled)
+		log.Printf("api listening on :%s (turnstile=%v demo=%v gateway=%v)", cfg.Port, cfg.TurnstileEnabled, cfg.DemoEnabled, cfg.GatewayEnabled)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("server: %v", err)
 		}

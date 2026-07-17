@@ -7,7 +7,29 @@ import type { ChatMessage, ChatStreamEvent, HealthResponse, StreamStats } from "
 
 type Health = "checking" | "online" | "offline";
 
-export function DemoChat() {
+type DemoChatProps = {
+  /** Backend chat route to POST to (SSE). Defaults to the self-hosted KobeLLM proxy. */
+  endpoint?: string;
+  /** Backend health route used for the online/offline check + header label. */
+  healthPath?: string;
+  /** Small right-aligned note in the header strip. */
+  footerNote?: string;
+  /** One-line blurb on the click-to-start screen. */
+  startBlurb?: string;
+  /** Overrides the start-screen spec rows (self-hosted model card by default). */
+  specs?: Array<{ label: string; value: string }>;
+  /** Clickable example prompts shown before the first message. */
+  suggestions?: string[];
+};
+
+export function DemoChat({
+  endpoint = "/chat",
+  healthPath = "/health",
+  footerNote = "Streaming · self-hosted",
+  startBlurb = "A live chat with a self-hosted open-source LLM.",
+  specs,
+  suggestions,
+}: DemoChatProps = {}) {
   const [health, setHealth] = useState<Health>("checking");
   const [modelName, setModelName] = useState<string>("");
   const [modelParams, setModelParams] = useState<string>("");
@@ -24,7 +46,7 @@ export function DemoChat() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`${apiUrl}/health`)
+    fetch(`${apiUrl}${healthPath}`)
       .then((r) => r.json() as Promise<HealthResponse>)
       .then((h) => {
         if (cancelled) return;
@@ -37,14 +59,14 @@ export function DemoChat() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [healthPath]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages]);
 
-  async function send() {
-    const text = input.trim();
+  async function send(override?: string) {
+    const text = (override ?? input).trim();
     if (!text || streaming) return;
     if (turnstileEnabled && !token) return;
 
@@ -56,7 +78,7 @@ export function DemoChat() {
     setLastStats(null);
 
     try {
-      const res = await fetch(`${apiUrl}/chat`, {
+      const res = await fetch(`${apiUrl}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: next, turnstileToken: token || undefined }),
@@ -130,19 +152,27 @@ export function DemoChat() {
           <span className={`h-2 w-2 rounded-full ${health === "online" ? "bg-green-500" : "bg-zinc-400"}`} />
           {health === "checking" ? "Checking…" : `Model: ${modelName || "online"}`}
         </span>
-        <span className="text-xs text-muted">Streaming · self-hosted</span>
+        <span className="text-xs text-muted">{footerNote}</span>
       </div>
 
       {!started ? (
         <div className="p-6 text-center">
-          <p className="text-muted">A live chat with a self-hosted open-source LLM.</p>
-          <dl className="mx-auto mt-5 max-w-xs space-y-1.5 text-sm">
-            <SpecRow label="Model" value={modelName || "—"} />
-            {modelParams && <SpecRow label="Parameters" value={modelParams} />}
-            {modelQuant && <SpecRow label="Quantization" value={modelQuant} />}
-            <SpecRow label="Runtime" value="llama.cpp · CPU" />
-            <SpecRow label="Hosting" value="1 box · no external API" />
-          </dl>
+          <p className="text-muted">{startBlurb}</p>
+          {specs ? (
+            <dl className="mx-auto mt-5 max-w-xs space-y-1.5 text-sm">
+              {specs.map((s) => (
+                <SpecRow key={s.label} label={s.label} value={s.value} />
+              ))}
+            </dl>
+          ) : (
+            <dl className="mx-auto mt-5 max-w-xs space-y-1.5 text-sm">
+              <SpecRow label="Model" value={modelName || "—"} />
+              {modelParams && <SpecRow label="Parameters" value={modelParams} />}
+              {modelQuant && <SpecRow label="Quantization" value={modelQuant} />}
+              <SpecRow label="Runtime" value="llama.cpp · CPU" />
+              <SpecRow label="Hosting" value="1 box · no external API" />
+            </dl>
+          )}
           <button
             onClick={() => setStarted(true)}
             disabled={health !== "online"}
@@ -155,7 +185,23 @@ export function DemoChat() {
         <>
           <div ref={scrollRef} className="h-80 space-y-4 overflow-y-auto p-4">
             {messages.length === 0 && (
-              <p className="text-sm text-muted">Ask the model anything to see token streaming.</p>
+              <div className="space-y-3">
+                <p className="text-sm text-muted">Ask the model anything to see token streaming.</p>
+                {suggestions && suggestions.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {suggestions.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => send(s)}
+                        disabled={streaming || (turnstileEnabled && !token)}
+                        className="rounded-md border border-border bg-bg px-2.5 py-1 text-left text-xs text-muted transition-colors hover:border-accent hover:text-accent disabled:opacity-60"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
             {messages.map((m, i) => (
               <div key={i} className={m.role === "user" ? "text-right" : ""}>
@@ -192,7 +238,7 @@ export function DemoChat() {
                 className="flex-1 rounded-md border border-border bg-bg px-3 py-2 text-sm focus:border-accent focus:outline-none"
               />
               <button
-                onClick={send}
+                onClick={() => send()}
                 disabled={streaming || !input.trim() || (turnstileEnabled && !token)}
                 className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60"
               >

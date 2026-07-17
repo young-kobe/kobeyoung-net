@@ -54,6 +54,14 @@ export interface ChatRequest {
   turnstileToken?: string;
 }
 
+// ---------------------------------------------------------------------------
+// POST /gateway  and  GET /gateway/health
+// ---------------------------------------------------------------------------
+// The second live chat routes through the ts-llm-gateway project (OpenAI-compatible surface)
+// to AWS Bedrock. It reuses the exact wire shapes above — `ChatRequest` in, an SSE stream of
+// `ChatStreamEvent` out, and `HealthResponse` for GET /gateway/health — so no new chat types
+// are needed. Its own kill-switch + tighter rate/budget caps live server-side.
+
 /**
  * Generation metrics for one response, measured server-side by the proxy and delivered
  * on the terminating `done` event. Lets the UI surface how the self-hosted model actually
@@ -138,4 +146,41 @@ export interface StatsResponse {
     abuse: { honeypot: number; rateLimited: number; turnstileFailed: number };
     contactSent: number;
   };
+}
+
+// ---------------------------------------------------------------------------
+// GET /gateway/stats  (ts-llm-gateway live counters, proxied through this backend)
+// ---------------------------------------------------------------------------
+
+/**
+ * The ts-llm-gateway's own live counters, relayed verbatim by the Go backend so the browser
+ * never calls Vercel directly. Shape mirrors the gateway's public GET /stats. All fields are
+ * public by design.
+ */
+export interface GatewayStats {
+  uptimeMs: number;
+  requests: number;
+  success: number;
+  errors: number;
+  rejected: {
+    rate_limited: number;
+    unauthorized: number;
+    payload_too_large: number;
+    invalid_request: number;
+    model_not_allowed: number;
+  };
+  cache: { hits: number; misses: number; hitRate: number };
+  failovers: number;
+  byProvider: { bedrock: number; openai: number };
+  tokens: { input: number; output: number };
+  latencyMs: { count: number; p50: number; p99: number };
+}
+
+/**
+ * Envelope from GET /gateway/stats. `online` is false when the gateway demo is disabled or
+ * the upstream fetch failed; `stats` is present only when `online` is true.
+ */
+export interface GatewayStatsResponse {
+  online: boolean;
+  stats?: GatewayStats;
 }

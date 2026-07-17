@@ -41,17 +41,66 @@ type chatRequest struct {
 	TurnstileToken string        `json:"turnstileToken"`
 }
 
+// upstream captures everything that differs between the two live chats — the self-hosted
+// model and the ts-llm-gateway → Bedrock proxy — so the abuse controls and SSE relay below
+// are written once and shared. Input/history caps are the same for both.
+type upstream struct {
+	enabled       bool
+	baseURL       string // OpenAI-style base; the handler appends /v1/chat/completions
+	apiKey        string
+	model         string
+	systemPrompt  string
+	maxTokens     int
+	maxInputChars int
+	maxHistory    int
+	recordMetrics bool // only the self-hosted chat feeds the site's /stats generation counters
+}
+
 type Handler struct {
-	cfg       *config.Config
+	up        upstream
+	trustXFF  bool
 	limiter   *ratelimit.Limiter
 	turnstile *turnstile.Verifier
 	metrics   *metrics.Metrics
 	client    *http.Client
 }
 
+// NewHandler builds the self-hosted-model chat (KobeLLM) at /chat.
 func NewHandler(cfg *config.Config, lim *ratelimit.Limiter, ts *turnstile.Verifier, m *metrics.Metrics) *Handler {
+	return newHandler(upstream{
+		enabled:       cfg.DemoEnabled,
+		baseURL:       cfg.ModelBaseURL,
+		apiKey:        cfg.ModelAPIKey,
+		model:         cfg.ModelName,
+		systemPrompt:  cfg.DemoSystemPrompt,
+		maxTokens:     cfg.DemoMaxTokens,
+		maxInputChars: cfg.DemoMaxInputChars,
+		maxHistory:    cfg.DemoMaxHistory,
+		recordMetrics: true,
+	}, cfg.TrustProxyHeaders, lim, ts, m)
+}
+
+// NewGatewayHandler builds the gateway-backed chat at /gateway — same relay, different
+// upstream, its own kill-switch/limiter. Generation timings are NOT recorded into the
+// self-hosted /stats dashboard (different model, different provider).
+func NewGatewayHandler(cfg *config.Config, lim *ratelimit.Limiter, ts *turnstile.Verifier, m *metrics.Metrics) *Handler {
+	return newHandler(upstream{
+		enabled:       cfg.GatewayEnabled,
+		baseURL:       cfg.GatewayBaseURL,
+		apiKey:        cfg.GatewayAPIKey,
+		model:         cfg.GatewayModel,
+		systemPrompt:  cfg.GatewaySystemPrompt,
+		maxTokens:     cfg.GatewayMaxTokens,
+		maxInputChars: cfg.DemoMaxInputChars,
+		maxHistory:    cfg.DemoMaxHistory,
+		recordMetrics: false,
+	}, cfg.TrustProxyHeaders, lim, ts, m)
+}
+
+func newHandler(up upstream, trustXFF bool, lim *ratelimit.Limiter, ts *turnstile.Verifier, m *metrics.Metrics) *Handler {
 	return &Handler{
-		cfg:       cfg,
+		up:        up,
+		trustXFF:  trustXFF,
 		limiter:   lim,
 		turnstile: ts,
 		metrics:   m,
@@ -64,12 +113,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !h.cfg.DemoEnabled {
+	if !h.up.enabled {
 		writeSSEError(w, "The live demo is currently disabled.", http.StatusServiceUnavailable)
 		return
 	}
 
-	ip := middleware.ClientIP(r, h.cfg.TrustProxyHeaders)
+	ip := middleware.ClientIP(r, h.trustXFF)
 	if !h.limiter.Allow(ip) {
 		h.metrics.RateLimitBlock()
 		writeSSEError(w, "Rate limit reached. Please slow down and try again shortly.", http.StatusTooManyRequests)
@@ -102,14 +151,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeSSEError(w, "Please enter a message.", http.StatusBadRequest)
 		return
 	}
-	if len([]rune(newInput)) > h.cfg.DemoMaxInputChars {
-		writeSSEError(w, fmt.Sprintf("Message too long (limit %d characters).", h.cfg.DemoMaxInputChars), http.StatusBadRequest)
+	if len([]rune(newInput)) > h.up.maxInputChars {
+		writeSSEError(w, fmt.Sprintf("Message too long (limit %d characters).", h.up.maxInputChars), http.StatusBadRequest)
 		return
 	}
 
 	// Bound history: keep only the most recent N messages before forwarding upstream.
-	if h.cfg.DemoMaxHistory > 0 && len(msgs) > h.cfg.DemoMaxHistory {
-		msgs = msgs[len(msgs)-h.cfg.DemoMaxHistory:]
+	if h.up.maxHistory > 0 && len(msgs) > h.up.maxHistory {
+		msgs = msgs[len(msgs)-h.up.maxHistory:]
 	}
 
 	h.stream(w, r, msgs)
@@ -147,30 +196,30 @@ func (h *Handler) stream(w http.ResponseWriter, r *http.Request, msgs []chatMess
 
 	// Pin the system prompt server-side; the client never supplies one (see sanitizeMessages).
 	upMsgs := make([]chatMessage, 0, len(msgs)+1)
-	if h.cfg.DemoSystemPrompt != "" {
-		upMsgs = append(upMsgs, chatMessage{Role: "system", Content: h.cfg.DemoSystemPrompt})
+	if h.up.systemPrompt != "" {
+		upMsgs = append(upMsgs, chatMessage{Role: "system", Content: h.up.systemPrompt})
 	}
 	upMsgs = append(upMsgs, msgs...)
 
 	upstreamBody, _ := json.Marshal(map[string]any{
-		"model":      h.cfg.ModelName,
+		"model":      h.up.model,
 		"messages":   upMsgs,
 		"stream":     true,
-		"max_tokens": h.cfg.DemoMaxTokens,
+		"max_tokens": h.up.maxTokens,
 	})
 
 	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 	defer cancel()
 
 	upReq, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		h.cfg.ModelBaseURL+"/v1/chat/completions", bytes.NewReader(upstreamBody))
+		h.up.baseURL+"/v1/chat/completions", bytes.NewReader(upstreamBody))
 	if err != nil {
 		writeSSEEvent(w, flusher, map[string]string{"type": "error", "message": "Demo offline."})
 		return
 	}
 	upReq.Header.Set("Content-Type", "application/json")
-	if h.cfg.ModelAPIKey != "" {
-		upReq.Header.Set("Authorization", "Bearer "+h.cfg.ModelAPIKey)
+	if h.up.apiKey != "" {
+		upReq.Header.Set("Authorization", "Bearer "+h.up.apiKey)
 	}
 
 	reqStart := time.Now()
@@ -235,7 +284,7 @@ func (h *Handler) stream(w http.ResponseWriter, r *http.Request, msgs []chatMess
 	}
 
 	stats := streamStatsFor(tokens, reqStart, firstTokenAt)
-	if stats != nil {
+	if stats != nil && h.up.recordMetrics {
 		h.metrics.RecordGeneration(stats.Tokens, stats.TTFTMs, stats.TokPerSec)
 	}
 	writeSSEDone(w, flusher, stats)
