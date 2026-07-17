@@ -56,7 +56,7 @@ export function ContactForm() {
       }
     } catch {
       setState("error");
-      setMessage("Network error — please try again.");
+      setMessage("Network error. Please try again.");
     }
   }
 

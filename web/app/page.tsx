@@ -66,13 +66,13 @@ export default function HomePage() {
     <div className="space-y-20 sm:space-y-28">
       {/* Hero */}
       <section className="pt-4 sm:pt-8">
-        <p className="eyebrow animate-rise">kobe young — software · systems · inference</p>
+        <p className="eyebrow animate-rise">kobe young · software · systems · inference</p>
         <HeroHeadline className="mt-5 max-w-4xl font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl" />
         <p
           className="mt-6 max-w-2xl text-lg leading-relaxed text-muted animate-rise"
           style={{ animationDelay: "120ms" }}
         >
-          Building the behind-the-scenes systems that move data and run AI models — the parts people
+          Building the behind-the-scenes systems that move data and run AI models, the parts people
           never see but use every day. Concretely: real-time data pipelines, RAG/LLM serving, and
           distributed backends on AWS and Azure. Former Navy avionics technician and residential
           electrician, now working my way down the stack toward systems and inference.
@@ -84,7 +84,7 @@ export default function HomePage() {
             rel="noopener"
             className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
           >
-            Civic Lens — live
+            Civic Lens · live
           </a>
           <Link
             href="/writeups"
@@ -113,13 +113,13 @@ export default function HomePage() {
       {/* Featured project — ts-llm-gateway, deployed on Vercel */}
       <Reveal>
         <section>
-          <SectionLabel>featured — ts-llm-gateway.vercel.app</SectionLabel>
+          <SectionLabel>featured · ts-llm-gateway.vercel.app</SectionLabel>
           <div className="mt-6 flex flex-wrap items-baseline gap-x-4 gap-y-2">
             <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">ts-llm-gateway</h2>
             <span className="font-mono text-xs text-muted">TypeScript · Vercel AI SDK · AWS Bedrock + OpenAI · Hono · Upstash Redis</span>
           </div>
           <p className="mt-4 max-w-2xl leading-relaxed text-muted">
-            A production-style, multi-provider LLM gateway in strict TypeScript — one unified API
+            A production-style, multi-provider LLM gateway in strict TypeScript: one unified API
             plus an OpenAI-compatible surface (a drop-in <span className="font-mono">baseURL</span>{" "}
             swap) that routes to AWS Bedrock and OpenAI behind a single injected provider interface,
             wrapped in real production policies: per-key/IP rate limiting, retry with backoff and
@@ -128,8 +128,8 @@ export default function HomePage() {
             the upstream call when the client disconnects.
           </p>
           <p className="mt-4 max-w-2xl leading-relaxed text-muted">
-            The point: it&apos;s the same class of system I built at work — a real-time streaming
-            pipeline — re-expressed as an LLM proxy. Kinesis backpressure became rate limiting;
+            The point: it&apos;s the same class of system I built at work, a real-time streaming
+            pipeline, re-expressed as an LLM proxy. Kinesis backpressure became rate limiting;
             retry/backoff became failover; quarantining a bad dependency became the circuit breaker;
             shard-consumer cancellation became streaming abort; composite routing keys became
             provider routing; SignalR fan-out became SSE.
@@ -183,7 +183,7 @@ export default function HomePage() {
       {/* Also featured — Civic Lens, deployed at civic-lens.info */}
       <Reveal>
         <section>
-          <SectionLabel>also featured — civic-lens.info</SectionLabel>
+          <SectionLabel>also featured · civic-lens.info</SectionLabel>
           <div className="mt-6 flex flex-wrap items-baseline gap-x-4 gap-y-2">
             <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">Civic Lens</h2>
             <span className="font-mono text-xs text-muted">Go · Python · SQLite · FastAPI · React · LLM pipeline</span>

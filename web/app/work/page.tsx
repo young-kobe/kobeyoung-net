@@ -5,13 +5,13 @@ import { PageHeader, SectionLabel } from "@/components/ui";
 export const metadata: Metadata = {
   title: "Work With Me",
   description:
-    "I audit AI apps and cut LLM token spend without killing quality — model routing, caching, and evals for teams throttling AI cost.",
+    "I audit AI apps and cut LLM token spend without killing quality: model routing, caching, and evals for teams throttling AI cost.",
 };
 
 const steps: { n: string; title: string; detail: string }[] = [
   { n: "01", title: "Connect", detail: "Point your logs or a drop-in OpenAI-compatible proxy at your traffic. No app rewrite." },
   { n: "02", title: "Analyze", detail: "Attribute spend per endpoint, per request type, per model. Find where the money actually goes." },
-  { n: "03", title: "Compare", detail: "Run your real prompts across frontier, open-weight, and local models — cost, latency, and a quality score side by side." },
+  { n: "03", title: "Compare", detail: "Run your real prompts across frontier, open-weight, and local models: cost, latency, and a quality score side by side." },
   { n: "04", title: "Route & cache", detail: "Send each task to the cheapest model that passes its quality bar; cache aggressively; escalate only on failure." },
   { n: "05", title: "Prove it", detail: "Before/after spend, with the quality evidence to show nothing regressed." },
 ];
@@ -30,7 +30,7 @@ function MigrationReport() {
   return (
     <figure className="my-8 overflow-hidden rounded-lg border border-border bg-surface">
       <div className="border-b border-border px-4 py-2 font-mono text-xs text-muted">
-        migration-report.txt — illustrative example
+        migration-report.txt · illustrative example
       </div>
       <div className="space-y-4 p-5 font-mono text-sm">
         <div className="grid grid-cols-3 gap-4">
@@ -59,7 +59,7 @@ function MigrationReport() {
         </div>
       </div>
       <figcaption className="border-t border-border px-4 py-2 text-xs text-muted">
-        Illustrative example, not a real client&apos;s data — the shape of what a spend audit produces.
+        Illustrative example, not a real client&apos;s data: the shape of what a spend audit produces.
       </figcaption>
     </figure>
   );
@@ -71,7 +71,7 @@ export default function WorkPage() {
       <PageHeader
         eyebrow="~/work"
         title="Cut your LLM bill without killing quality"
-        lead="Teams are throttling AI spend, not abandoning it. I audit AI apps and bring token cost under control — model routing, caching, and evals — with the evidence to prove quality held."
+        lead="Teams are throttling AI spend, not abandoning it. I audit AI apps and bring token cost under control (model routing, caching, and evals) with the evidence to prove quality held."
       />
 
       {/* The offer */}
@@ -82,12 +82,12 @@ export default function WorkPage() {
             The market moved from &ldquo;use the smartest frontier model everywhere&rdquo; to
             &ldquo;route each task to the cheapest model that&apos;s good enough, measure quality,
             cache aggressively, and escalate only when needed.&rdquo; That&apos;s systems work:
-            routing, caching, evals, cost attribution, and latency control — the layer I build.
+            routing, caching, evals, cost attribution, and latency control: the layer I build.
           </p>
           <p>
             I come at it from the inside. I&apos;ve built a from-scratch{" "}
             <Link href="/writeups/mini-inference-engine">LLM inference engine</Link> (KV cache,
-            batching, throughput), self-host models, and have run RAG in production — so the
+            batching, throughput), self-host models, and have run RAG in production, so the
             recommendations are grounded in how inference actually costs money, not guesswork.
           </p>
         </div>

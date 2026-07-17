@@ -46,7 +46,7 @@ export function GatewayLiveStats() {
   return (
     <div>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div className="eyebrow">ts-llm-gateway — live /stats</div>
+        <div className="eyebrow">ts-llm-gateway · live /stats</div>
         <span className="flex items-center gap-1.5 font-mono text-xs text-muted">
           <span className={`h-2 w-2 rounded-full ${online ? "bg-accent animate-pulse" : "bg-muted/50"}`} />
           {online ? "polling gateway" : "gateway offline"}
@@ -56,14 +56,14 @@ export function GatewayLiveStats() {
       <div className="relative mt-3 border border-border bg-surface/70 p-4">
         <CornerTicks className="opacity-40" />
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          <Tile label="requests" value={s ? nf(s.requests) : "—"} sub={s ? `${nf(s.success)} ok · ${nf(s.errors)} err` : "served"} />
-          <Tile label="cache hit rate" value={s ? pct(s.cache.hitRate) : "—"} sub={s ? `${nf(s.cache.hits)} hit · ${nf(s.cache.misses)} miss` : "LRU cache"} accent />
-          <Tile label="p50 latency" value={s ? `${nf(s.latencyMs.p50)}` : "—"} sub="ms" />
-          <Tile label="p99 latency" value={s ? `${nf(s.latencyMs.p99)}` : "—"} sub="ms" />
-          <Tile label="failovers" value={s ? nf(s.failovers) : "—"} sub="provider switches" accent />
-          <Tile label="providers" value={s ? `${nf(s.byProvider.bedrock)}/${nf(s.byProvider.openai)}` : "—"} sub="bedrock / openai" />
-          <Tile label="tokens" value={s ? `${nf(s.tokens.input)}/${nf(s.tokens.output)}` : "—"} sub="in / out" />
-          <Tile label="rejected" value={s ? nf(rejectedTotal(s)) : "—"} sub="rate-limit + auth + caps" />
+          <Tile label="requests" value={s ? nf(s.requests) : "-"} sub={s ? `${nf(s.success)} ok · ${nf(s.errors)} err` : "served"} />
+          <Tile label="cache hit rate" value={s ? pct(s.cache.hitRate) : "-"} sub={s ? `${nf(s.cache.hits)} hit · ${nf(s.cache.misses)} miss` : "LRU cache"} accent />
+          <Tile label="p50 latency" value={s ? `${nf(s.latencyMs.p50)}` : "-"} sub="ms" />
+          <Tile label="p99 latency" value={s ? `${nf(s.latencyMs.p99)}` : "-"} sub="ms" />
+          <Tile label="failovers" value={s ? nf(s.failovers) : "-"} sub="provider switches" accent />
+          <Tile label="providers" value={s ? `${nf(s.byProvider.bedrock)}/${nf(s.byProvider.openai)}` : "-"} sub="bedrock / openai" />
+          <Tile label="tokens" value={s ? `${nf(s.tokens.input)}/${nf(s.tokens.output)}` : "-"} sub="in / out" />
+          <Tile label="rejected" value={s ? nf(rejectedTotal(s)) : "-"} sub="rate-limit + auth + caps" />
         </div>
       </div>
     </div>

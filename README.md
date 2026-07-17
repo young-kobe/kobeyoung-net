@@ -1,5 +1,12 @@
 # kobeyoung.net — portfolio, technical blog, and self-hosted LLM demo
 
+[![CI](https://github.com/young-kobe/kobeyoung-net/actions/workflows/deploy.yml/badge.svg)](https://github.com/young-kobe/kobeyoung-net/actions/workflows/deploy.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+![Go](https://img.shields.io/badge/Go-stdlib--only-00ADD8.svg)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)
+![Next.js](https://img.shields.io/badge/Next.js-15-000000.svg)
+[![Live](https://img.shields.io/badge/live-kobeyoung.net-brightgreen.svg)](https://kobeyoung.net)
+
 A fast, secure personal site: a portfolio + technical blog (MDX, git-as-CMS) with a
 live, streaming demo of a self-hosted open-source LLM. The Next.js frontend only ever
 talks to a Go backend; all secrets stay server-side.

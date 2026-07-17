@@ -4,7 +4,7 @@ import { PageHeader, SectionLabel } from "@/components/ui";
 
 export const metadata: Metadata = {
   title: "About Me",
-  description: "Kobe Young — from Navy avionics to software engineering, cloud to systems.",
+  description: "Kobe Young: from Navy avionics to software engineering, cloud to systems.",
 };
 
 /**

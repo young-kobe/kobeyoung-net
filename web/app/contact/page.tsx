@@ -13,7 +13,7 @@ export default function ContactPage() {
     <div className="max-w-xl">
       <PageHeader eyebrow="~/contact" title="Contact" />
       <p className="mt-4 text-muted">
-        Hiring, collaboration, or questions about my work — send a note and it lands in my
+        Hiring, collaboration, or questions about my work: send a note and it lands in my
         inbox. You can also reach me on{" "}
         <a href={site.socials.github} className="text-accent hover:underline" target="_blank" rel="noopener noreferrer">
           GitHub

@@ -4,7 +4,7 @@ import { CardLink, PageHeader, StatusBadge, Tag } from "@/components/ui";
 
 export const metadata: Metadata = {
   title: "Writeups",
-  description: "Technical writeups — system architecture, LLM evals, scoring methodology, data pipelines, and inference engines.",
+  description: "Technical writeups: system architecture, LLM evals, scoring methodology, data pipelines, and inference engines.",
 };
 
 export default function WriteupsPage() {
