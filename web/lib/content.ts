@@ -35,6 +35,8 @@ export interface WriteupFrontmatter {
   date: string; // ISO yyyy-mm-dd
   summary: string;
   status: WriteupStatus;
+  /** Project this writeup belongs to; used to group the writeups index. */
+  project: string;
   tags: string[];
   hero?: string;
   repo?: string;
@@ -95,6 +97,7 @@ function validateWriteup(fm: any, slug: string): WriteupFrontmatter {
     date: requireString(fm, "date", slug),
     summary: requireString(fm, "summary", slug),
     status,
+    project: requireString(fm, "project", slug),
     tags: Array.isArray(fm.tags) ? fm.tags.map(String) : [],
     hero: fm.hero,
     repo: fm.repo,
@@ -128,6 +131,76 @@ export function getWriteup(slug: string): Doc<WriteupFrontmatter> | null {
   const file = `${slug}.mdx`;
   if (!readDir("writeups").includes(file)) return null;
   return readDoc("writeups", file, validateWriteup);
+}
+
+export type ProjectStatus = "ongoing" | "paused" | "shipped" | "planned";
+
+export interface ProjectChangelogEntry {
+  date: string;
+  note: string;
+  writeupTitle: string;
+  writeupSlug: string;
+}
+
+export interface Project {
+  name: string;
+  /** Anchor id / filter key, slugified from the name. */
+  slug: string;
+  status: ProjectStatus;
+  /** Writeups in this project, newest first. */
+  writeups: Doc<WriteupFrontmatter>[];
+  /** Every writeup's update-log entries, merged newest first. */
+  changelog: ProjectChangelogEntry[];
+  /** Most recent date across the project's writeups and changelog (ISO yyyy-mm-dd). */
+  lastActivity: string;
+}
+
+function slugify(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+/** Project status is derived from its writeups, so it can't drift from the content:
+ *  any active writeup ⇒ ongoing; else a paused one ⇒ paused; all shipped ⇒ shipped. */
+function deriveStatus(writeups: Doc<WriteupFrontmatter>[]): ProjectStatus {
+  const statuses = new Set(writeups.map((w) => w.frontmatter.status));
+  if (statuses.has("in-progress")) return "ongoing";
+  if (statuses.has("paused")) return "paused";
+  if (statuses.has("planned") && !statuses.has("shipped")) return "planned";
+  return "shipped";
+}
+
+/** Writeups grouped by their `project` frontmatter, ordered by most recent activity. */
+export function getProjects(): Project[] {
+  const byName = new Map<string, Doc<WriteupFrontmatter>[]>();
+  for (const w of getWriteups()) {
+    const arr = byName.get(w.frontmatter.project) ?? [];
+    arr.push(w); // getWriteups() is already date-desc, so groups stay date-desc
+    byName.set(w.frontmatter.project, arr);
+  }
+
+  const projects: Project[] = [...byName].map(([name, writeups]) => {
+    const changelog = writeups
+      .flatMap((w) =>
+        (w.frontmatter.updates ?? []).map((u) => ({
+          date: u.date,
+          note: u.note,
+          writeupTitle: w.frontmatter.title,
+          writeupSlug: w.slug,
+        })),
+      )
+      .sort((a, b) => b.date.localeCompare(a.date));
+    const lastActivity =
+      [...writeups.map((w) => w.frontmatter.date), ...changelog.map((c) => c.date)]
+        .sort()
+        .at(-1) ?? "";
+    return { name, slug: slugify(name), status: deriveStatus(writeups), writeups, changelog, lastActivity };
+  });
+
+  return projects.sort((a, b) => b.lastActivity.localeCompare(a.lastActivity));
+}
+
+export function getProject(slug: string): Project | null {
+  return getProjects().find((p) => p.slug === slug) ?? null;
 }
 
 export function getPosts(includeDrafts = false): Doc<PostFrontmatter>[] {
