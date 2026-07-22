@@ -137,7 +137,7 @@ export default function WorkPage() {
           href="/contact"
           className="mt-4 inline-block rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
         >
-          Start a conversation →
+          Start a conversation
         </Link>
       </section>
     </div>

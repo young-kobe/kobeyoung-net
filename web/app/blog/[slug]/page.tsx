@@ -39,7 +39,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
   return (
     <article>
-      <BackLink href="/blog">← all writeups</BackLink>
+      <BackLink href="/blog">All writeups</BackLink>
       <header className="mt-5">
         <DecodeText
           as="h1"
