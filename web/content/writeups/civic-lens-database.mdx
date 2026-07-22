@@ -3,9 +3,18 @@ title: "Civic Lens — Database Schema & Migrations"
 date: 2026-07-09
 summary: One SQLite database shared by a Go crawler and a Python analysis pipeline — 16 tables across ingestion, corpus, analysis, and ops; 21 transactional migrations; and foreign keys enforced on both sides so traceability is a constraint, not a convention.
 status: shipped
+project: Civic Lens
 tags: [SQLite, Go, Python, Data Modeling, Migrations]
 repo: https://github.com/young-kobe/civic-lens
 demo: https://civic-lens.info
+
+updates:
+  - date: 2026-07-10
+    note: Canonicalized the derived-truth schema and began persisting stable target-entity IDs so analysis rows trace back to a single entity across runs.
+  - date: 2026-07-09
+    note: Data-layer audit and remediation — foreign keys and traceability enforced from both the Go crawler and the Python pipeline.
+  - date: 2026-03-23
+    note: Implemented the entity and topic hierarchy the corpus and analysis tables hang off of.
 ---
 
 [Civic Lens](https://civic-lens.info) stores everything — crawl state, raw-content pointers,

@@ -3,9 +3,20 @@ title: "Civic Lens — System Architecture"
 date: 2026-07-09
 summary: How Civic Lens turns raw news, Reddit, and X into audited discourse metrics — a crash-safe Go crawler, a content-addressed blob store, one SQLite database shared across two languages, a five-engine Python analysis pipeline, and a snapshot-cached API.
 status: shipped
+project: Civic Lens
 tags: [Go, Python, SQLite, FastAPI, React, Architecture]
 repo: https://github.com/young-kobe/civic-lens
 demo: https://civic-lens.info
+
+updates:
+  - date: 2026-07-15
+    note: Parallelized the LLM analysis stages with bounded concurrency, and added tests that pin the concurrency behavior.
+  - date: 2026-07-09
+    note: Containerized the full stack with local inference and brought it up behind a systemd-managed service on a single box.
+  - date: 2026-02-04
+    note: Wired the LLM analysis pass into the pipeline and settled the structured-output contract between the Python engines and the store.
+  - date: 2026-01-15
+    note: Initial infrastructure — the Go crawler, content-addressed blob store, and shared SQLite schema stood up end to end.
 ---
 
 [Civic Lens](https://civic-lens.info) is an audit-driven system for measuring **sampled political

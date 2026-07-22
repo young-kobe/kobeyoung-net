@@ -3,9 +3,18 @@ title: "Civic Lens — System Invariants"
 date: 2026-07-09
 summary: The non-negotiable correctness contract behind Civic Lens — traceability from every pixel back to raw bytes, evidence spans that must be verbatim quotes, confidence on every AI output, and proxy metrics that are never allowed to pose as ground truth.
 status: shipped
+project: Civic Lens
 tags: [Correctness, Design, Data Integrity, AI Safety]
 repo: https://github.com/young-kobe/civic-lens
 demo: https://civic-lens.info
+
+updates:
+  - date: 2026-07-09
+    note: Per-layer audits (crawler, analysis, data, UI) to re-verify the invariants held after the containerize-and-deploy work.
+  - date: 2026-04-20
+    note: Full codebase audit with layered remediation across ingest, analysis, API, and UI, then a v1 deployment-hardening pass.
+  - date: 2026-04-18
+    note: Hardened LLM outputs — confidence on every result and verbatim evidence spans made a requirement, not a convention.
 ---
 
 Before [Civic Lens](https://civic-lens.info) had a dashboard, it had a contract:
