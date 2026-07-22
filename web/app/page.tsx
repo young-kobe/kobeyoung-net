@@ -110,10 +110,60 @@ export default function HomePage() {
         </p>
       </section>
 
-      {/* Featured project — ts-llm-gateway, deployed on Vercel */}
+      {/* Featured project — Civic Lens, deployed at civic-lens.info */}
       <Reveal>
         <section>
-          <SectionLabel>featured · ts-llm-gateway.vercel.app</SectionLabel>
+          <SectionLabel>featured · civic-lens.info</SectionLabel>
+          <div className="mt-6 flex flex-wrap items-baseline gap-x-4 gap-y-2">
+            <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">Civic Lens</h2>
+            <span className="font-mono text-xs text-muted">Go · Python · SQLite · FastAPI · React · LLM pipeline</span>
+          </div>
+          <p className="mt-4 max-w-2xl leading-relaxed text-muted">
+            An audit-driven system that measures sampled political discourse across news, Reddit,
+            and X: a polite, crash-safe Go crawler, an LLM analysis pipeline where every output
+            carries a confidence score and a verbatim evidence span, narrative clustering, and a
+            CI regression gate for prompt changes. Open source, deployed, and documented down to
+            the invariants.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <a
+              href="https://civic-lens.info"
+              target="_blank"
+              rel="noopener"
+              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            >
+              Open the live dashboard
+            </a>
+            <a
+              href="https://github.com/young-kobe/civic-lens"
+              target="_blank"
+              rel="noopener"
+              className="rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+            >
+              Source on GitHub
+            </a>
+          </div>
+          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {CIVIC_LENS_WRITEUPS.map((w) => (
+              <Link
+                key={w.slug}
+                href={`/writeups/${w.slug}`}
+                className="group rounded-lg border border-border bg-surface p-4 transition-colors hover:border-accent"
+              >
+                <span className="text-sm font-medium transition-colors group-hover:text-accent">
+                  {w.label}
+                </span>
+                <p className="mt-1.5 font-mono text-xs text-muted">{w.note}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      </Reveal>
+
+      {/* Also featured — ts-llm-gateway, deployed on Vercel */}
+      <Reveal>
+        <section>
+          <SectionLabel>also featured · ts-llm-gateway.vercel.app</SectionLabel>
           <div className="mt-6 flex flex-wrap items-baseline gap-x-4 gap-y-2">
             <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">ts-llm-gateway</h2>
             <span className="font-mono text-xs text-muted">TypeScript · Vercel AI SDK · AWS Bedrock + OpenAI · Hono · Upstash Redis</span>
@@ -177,56 +227,6 @@ export default function HomePage() {
           <p className="mt-4 font-mono text-xs text-muted">
             {"// ~6× cache-hit speedup and cross-provider failover both verified on the live deployment"}
           </p>
-        </section>
-      </Reveal>
-
-      {/* Also featured — Civic Lens, deployed at civic-lens.info */}
-      <Reveal>
-        <section>
-          <SectionLabel>also featured · civic-lens.info</SectionLabel>
-          <div className="mt-6 flex flex-wrap items-baseline gap-x-4 gap-y-2">
-            <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">Civic Lens</h2>
-            <span className="font-mono text-xs text-muted">Go · Python · SQLite · FastAPI · React · LLM pipeline</span>
-          </div>
-          <p className="mt-4 max-w-2xl leading-relaxed text-muted">
-            An audit-driven system that measures sampled political discourse across news, Reddit,
-            and X: a polite, crash-safe Go crawler, an LLM analysis pipeline where every output
-            carries a confidence score and a verbatim evidence span, narrative clustering, and a
-            CI regression gate for prompt changes. Open source, deployed, and documented down to
-            the invariants.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <a
-              href="https://civic-lens.info"
-              target="_blank"
-              rel="noopener"
-              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
-            >
-              Open the live dashboard
-            </a>
-            <a
-              href="https://github.com/young-kobe/civic-lens"
-              target="_blank"
-              rel="noopener"
-              className="rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
-            >
-              Source on GitHub
-            </a>
-          </div>
-          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {CIVIC_LENS_WRITEUPS.map((w) => (
-              <Link
-                key={w.slug}
-                href={`/writeups/${w.slug}`}
-                className="group rounded-lg border border-border bg-surface p-4 transition-colors hover:border-accent"
-              >
-                <span className="text-sm font-medium transition-colors group-hover:text-accent">
-                  {w.label} →
-                </span>
-                <p className="mt-1.5 font-mono text-xs text-muted">{w.note}</p>
-              </Link>
-            ))}
-          </div>
         </section>
       </Reveal>
 

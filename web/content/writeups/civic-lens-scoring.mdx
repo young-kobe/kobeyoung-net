@@ -3,9 +3,18 @@ title: "Civic Lens — Scoring Methodology"
 date: 2026-07-09
 summary: How every number on the dashboard is computed and bounded — blended bot scores with human-readable indicators, lexicon + LLM sentiment, GOP favorability as an explicitly-labeled proxy, and propaganda detection that refuses to flag anything it can't quote.
 status: shipped
+project: Civic Lens
 tags: [LLM, NLP, Python, Scoring, Data]
 repo: https://github.com/young-kobe/civic-lens
 demo: https://civic-lens.info
+
+updates:
+  - date: 2026-07-13
+    note: Enriched narrative and propaganda correlation rollups across the corpus.
+  - date: 2026-07-10
+    note: Shipped a sentiment target extractor and modularized the aggregators feeding the dashboard scores.
+  - date: 2026-04-25
+    note: Narrative classification, an overall-tone redesign, and pipeline context seeding to sharpen scored outputs.
 ---
 
 Every metric on [civic-lens.info](https://civic-lens.info) is produced by a hybrid of

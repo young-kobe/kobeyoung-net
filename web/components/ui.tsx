@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { WriteupStatus } from "@/lib/content";
+import type { ProjectStatus, WriteupStatus } from "@/lib/content";
 import { DecodeText } from "./DecodeText";
 
 /** Mono eyebrow over a hairline rule — the recurring "data voice" label. */
@@ -117,6 +117,21 @@ export function StatusBadge({ status }: { status: WriteupStatus }) {
   return (
     <span className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_STYLES[status]}`}>
       {status.replace("-", " ")}
+    </span>
+  );
+}
+
+const PROJECT_STATUS_STYLES: Record<ProjectStatus, string> = {
+  ongoing: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
+  paused: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30",
+  shipped: "bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/30",
+  planned: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-400 border-zinc-500/30",
+};
+
+export function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
+  return (
+    <span className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${PROJECT_STATUS_STYLES[status]}`}>
+      {status}
     </span>
   );
 }

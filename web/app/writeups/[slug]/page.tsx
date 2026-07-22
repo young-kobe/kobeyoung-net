@@ -33,7 +33,7 @@ export default async function WriteupPage({ params }: { params: Promise<{ slug: 
 
   return (
     <article>
-      <BackLink href="/writeups">← all writeups</BackLink>
+      <BackLink href="/writeups">All writeups</BackLink>
 
       <header className="mt-5">
         <div className="flex flex-wrap items-center gap-3">
